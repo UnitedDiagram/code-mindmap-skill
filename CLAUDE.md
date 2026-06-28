@@ -33,7 +33,7 @@ scripts/run_tests.sh tests/agent/test_foo.py -v --tb=long  # with pytest flags
 scripts/run_tests.sh --no-isolate tests/foo/            # disable subprocess isolation (debugging)
 ```
 
-Every test runs in a freshly-spawned subprocess (`tests/_isolate_plugin.py`). Tests must never write to `~/.hermes/` — the `_isolate_hermes_home` autouse fixture redirects `HERMES_HOME` to a temp dir.
+Every test runs in a freshly-spawned subprocess (`tests/_isolate_plugin.py`). Tests must never write to `~/.hermes/` — the `_isolate_hermes_home` autouse fixture redirects `HERMES_HOME` to a temp dir. Integration tests (marked `@pytest.mark.integration`) are excluded by default via `addopts` in `pyproject.toml`.
 
 ## Linting & Type Checking
 
@@ -102,6 +102,15 @@ All slash commands defined in `COMMAND_REGISTRY` in `hermes_cli/commands.py`. CL
 ### Gateway Message Guards
 
 The gateway has TWO sequential message guards when an agent is running: (1) base adapter queues in `_pending_messages`, (2) gateway runner intercepts control commands. New commands that must work during agent execution must bypass BOTH guards.
+
+### Adding Configuration
+
+- **New `config.yaml` option:** Add to `DEFAULT_CONFIG` in `hermes_cli/config.py`. Only bump `_config_version` if you need to migrate/transform existing user config (renaming keys, changing structure). Adding a new key is auto-merged without a version bump.
+- **New `.env` variable:** Add to `OPTIONAL_ENV_VARS` in `hermes_cli/config.py` with metadata (description, prompt, category). `.env` is for secrets only — behavioral settings go in `config.yaml`.
+
+### Delegation (`delegate_task`)
+
+`tools/delegate_tool.py` spawns subagents with isolated context + terminal. `role="leaf"` (default) cannot delegate further; `role="orchestrator"` can spawn its own workers (bounded by `delegation.max_spawn_depth`). Background delegations are process-local — for work surviving process restart, use `cronjob` or `terminal(background=True)`.
 
 ## Critical Rules
 
