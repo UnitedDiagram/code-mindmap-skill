@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Agent - Interactive Codebase Mind Map</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2333;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --accent: #f0c040;
+  --accent2: #58a6ff;
+  --accent3: #7ee787;
+  --accent4: #d2a8ff;
+  --accent5: #ff7b72;
+  --accent6: #79c0ff;
+  --code-bg: #0d1117;
+  --node-agent: #f0c040;
+  --node-cli: #58a6ff;
+  --node-gateway: #7ee787;
+  --node-tui: #d2a8ff;
+  --node-tools: #ff7b72;
+  --node-plugins: #79c0ff;
+  --node-skills: #ffa657;
+  --node-cron: #f778ba;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Header */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.header h1 { font-size: 18px; color: var(--accent); font-weight: 600; }
+.header .subtitle { font-size: 13px; color: var(--text-dim); }
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto; font-size: 13px; color: var(--text-dim);
+}
+.breadcrumb span { cursor: pointer; }
+.breadcrumb span:hover { color: var(--accent2); }
+.breadcrumb .sep { color: var(--border); }
+.breadcrumb .current { color: var(--text); font-weight: 500; }
+.zoom-controls {
+  display: flex; gap: 4px; margin-left: 16px;
+}
+.zoom-controls button {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 4px 10px; cursor: pointer;
+  border-radius: 4px; font-size: 14px;
+}
+.zoom-controls button:hover { background: var(--border); }
+
+/* Main layout */
+.main {
+  display: flex;
+  height: 100vh;
+  padding-top: 52px;
+}
+
+/* Canvas area */
+.canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.canvas-inner {
+  position: absolute;
+  transform-origin: 0 0;
+  transition: transform 0.3s ease;
+}
+
+/* Node grid */
+.node-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 40px;
+  max-width: 1400px;
+}
+
+/* Node cards */
+.node-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 280px;
+  max-width: 400px;
+  flex: 1 1 300px;
+}
+.node-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--node-color, var(--accent));
+}
+.node-card:hover {
+  border-color: var(--node-color, var(--accent));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.node-card.expanded {
+  flex: 1 1 100%;
+  max-width: 100%;
+  cursor: default;
+}
+.node-card .node-icon { font-size: 28px; margin-bottom: 8px; }
+.node-card h3 {
+  font-size: 16px; font-weight: 600;
+  color: var(--node-color, var(--accent));
+  margin-bottom: 6px;
+}
+.node-card .node-desc {
+  font-size: 13px; color: var(--text-dim);
+  line-height: 1.5; margin-bottom: 12px;
+}
+.node-card .node-files {
+  font-size: 12px; color: var(--text-dim);
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.node-card .file-tag {
+  background: var(--surface2);
+  padding: 2px 8px; border-radius: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+.node-card .click-hint {
+  position: absolute; bottom: 12px; right: 16px;
+  font-size: 11px; color: var(--text-dim);
+  opacity: 0; transition: opacity 0.2s;
+}
+.node-card:hover .click-hint { opacity: 1; }
+
+/* Connection lines (SVG) */
+.connections-svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+.conn-line {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  fill: none;
+  opacity: 0.5;
+}
+
+/* Detail panel */
+.detail-panel {
+  width: 0;
+  overflow: hidden;
+  transition: width 0.3s ease;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.detail-panel.open { width: 520px; }
+.detail-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.detail-header h2 {
+  font-size: 16px; font-weight: 600; flex: 1;
+}
+.detail-close {
+  background: none; border: none; color: var(--text-dim);
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+}
+.detail-close:hover { color: var(--text); }
+.detail-body {
+  flex: 1; overflow-y: auto; padding: 20px;
+}
+.detail-section { margin-bottom: 24px; }
+.detail-section h4 {
+  font-size: 13px; font-weight: 600;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.detail-section p {
+  font-size: 14px; line-height: 1.6;
+  color: var(--text-dim);
+}
+.detail-section .explanation {
+  background: var(--surface2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px; border-radius: 0 8px 8px 0;
+  margin-bottom: 12px; font-size: 14px; line-height: 1.6;
+}
+
+/* Code blocks */
+pre.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  color: var(--text);
+  margin: 8px 0;
+  white-space: pre;
+}
+pre.code-block .kw { color: var(--accent5); }
+pre.code-block .fn { color: var(--accent4); }
+pre.code-block .str { color: var(--accent3); }
+pre.code-block .cm { color: var(--text-dim); font-style: italic; }
+pre.code-block .type { color: var(--accent6); }
+
+/* Sub-nodes list */
+.sub-nodes { display: flex; flex-direction: column; gap: 8px; }
+.sub-node {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sub-node:hover {
+  border-color: var(--accent2);
+  background: #1a2332;
+}
+.sub-node h5 {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  margin-bottom: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.sub-node p { font-size: 12px; color: var(--text-dim); }
+
+/* Connection badges */
+.conn-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--surface2);
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; color: var(--text-dim);
+  margin: 2px;
+}
+.conn-badge .arrow { color: var(--accent3); }
+
+/* Back button */
+.back-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--accent2);
+  padding: 8px 16px; border-radius: 8px;
+  cursor: pointer; font-size: 13px;
+  margin-bottom: 20px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.back-btn:hover { background: var(--border); }
+
+/* Legend */
+.legend {
+  position: fixed; bottom: 16px; left: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 11px;
+  z-index: 50;
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+}
+.legend-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--border); border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Search */
+.search-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--text);
+  font-size: 13px;
+  width: 200px;
+  outline: none;
+}
+.search-box:focus { border-color: var(--accent2); }
+.search-box::placeholder { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Agent</h1>
+  <span class="subtitle">Interactive Codebase Mind Map</span>
+  <input class="search-box" type="text" placeholder="Search modules..." id="searchBox" oninput="filterNodes(this.value)">
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="current" onclick="goToLevel('top')">Overview</span>
+  </div>
+  <div class="zoom-controls">
+    <button onclick="zoomIn()" title="Zoom in">+</button>
+    <button onclick="zoomOut()" title="Zoom out">-</button>
+    <button onclick="resetZoom()" title="Reset">1:1</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="canvas" id="canvas">
+    <div class="canvas-inner" id="canvasInner">
+      <div class="node-grid" id="nodeGrid"></div>
+    </div>
+  </div>
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <h2 id="detailTitle">Details</h2>
+      <button class="detail-close" onclick="closeDetail()">&times;</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-agent)"></div> Agent Core</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-cli)"></div> CLI</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-gateway)"></div> Gateway</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-tui)"></div> TUI</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-tools)"></div> Tools</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-plugins)"></div> Plugins</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-skills)"></div> Skills</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--node-cron)"></div> Cron</div>
+</div>
+
+<script>
+// ============================================================
+// CODEBASE DATA - All architecture info for the mind map
+// ============================================================
+
+const DATA = {
+  systems: [
+    {
+      id: "agent-core",
+      name: "Agent Core",
+      icon: "🧠",
+      color: "var(--node-agent)",
+      desc: "The AI brain. Receives messages, decides when to use tools, calls the AI model, and manages the conversation. This is the central loop that makes Hermes \"think.\"",
+      files: ["run_agent.py", "model_tools.py", "toolsets.py", "hermes_state.py", "hermes_constants.py"],
+      connections: ["tools", "plugins", "cli", "gateway", "tui"],
+      modules: [
+        {
+          id: "run-agent",
+          name: "run_agent.py",
+          subtitle: "AIAgent class (~12k lines)",
+          desc: "The main \"person\" of the system. AIAgent is the entity that has a conversation with you — it receives your messages, decides when to use tools, calls the AI model for responses, handles errors, and manages the conversation state.",
+          explanation: "Think of this as the brain of Hermes. When you send a message, it goes here first. The AIAgent decides: should I respond directly, or should I use a tool (like running a terminal command or searching the web) to help answer? It keeps going in a loop — calling the AI model, executing tools, calling the model again — until it has a final answer for you.",
+          code: `class AIAgent:
+    def run_conversation(self, user_message, ...):
+        messages = build_context(user_message)
+        api_call_count = 0
+
+        while api_call_count < self.max_iterations:
+            if self._interrupt_requested:
+                break
+            response = call_ai_model(messages, tools)
+            if response.tool_calls:
+                for tool in response.tool_calls:
+                    result = handle_function_call(tool)
+                    messages.append(result)
+                api_call_count += 1
+            else:
+                return response.content  # Final answer`,
+          connections: {imports: ["model_tools.py", "hermes_state.py", "hermes_constants.py", "agent/*"], importedBy: ["cli.py", "gateway/run.py", "tui_gateway/server.py", "cron/scheduler.py"]},
+          submodules: [
+            {name: "agent/conversation_loop.py", desc: "The actual run_conversation body (~3,900 lines). Model call → tool dispatch → retry → compress loop."},
+            {name: "agent/agent_init.py", desc: "The 1,400-line __init__ body. Provider detection, credential resolution, context-engine bootstrap."},
+            {name: "agent/context_compressor.py", desc: "Summarizes old conversation turns when the context window fills up. Uses a cheaper model to compress."},
+            {name: "agent/prompt_caching.py", desc: "Places cache markers on messages so repeated API calls reuse cached context (~75% cost reduction)."},
+            {name: "agent/prompt_builder.py", desc: "Assembles the system prompt from identity, skills, context files, and environment hints."},
+            {name: "agent/memory_manager.py", desc: "Orchestrates memory providers. Only one external provider runs at a time. Handles background prefetch/sync."},
+            {name: "agent/display.py", desc: "CLI presentation: the animated spinner faces, diff formatting, tool progress display."},
+            {name: "agent/tool_guardrails.py", desc: "Detects and halts non-progressing tool call loops (same args, repeated failures)."},
+            {name: "agent/error_classifier.py", desc: "Classifies API errors (rate limit, auth failure, context overflow) to decide whether to retry or fall back."},
+            {name: "agent/iteration_budget.py", desc: "Tracks and enforces iteration limits with grace calls for budget exhaustion."}
+          ]
+        },
+        {
+          id: "model-tools",
+          name: "model_tools.py",
+          subtitle: "Tool orchestration",
+          desc: "The traffic controller between the agent brain and the tools. Triggers tool discovery, provides tool schemas to the AI model, and dispatches tool calls to the right handler.",
+          explanation: "When the AI model says \"I want to run a terminal command,\" this file figures out which tool handler to call, runs any plugin hooks before/after, and returns the result. It also builds the list of available tools that gets sent with every API call.",
+          code: `def handle_function_call(function_name, function_args, ...):
+    # Coerce arguments to match expected types
+    function_args = coerce_tool_args(function_name, function_args)
+
+    # Run plugin pre-hooks (can block execution)
+    plugin_manager.run_hook("pre_tool_call", name, args)
+
+    # Dispatch to the registered handler
+    result = registry.dispatch(function_name, function_args)
+
+    # Run plugin post-hooks
+    plugin_manager.run_hook("post_tool_call", name, result)
+    return result`,
+          connections: {imports: ["tools/registry.py", "toolsets.py"], importedBy: ["run_agent.py"]}
+        },
+        {
+          id: "toolsets",
+          name: "toolsets.py",
+          subtitle: "Tool grouping system",
+          desc: "Organizes individual tools into named bundles. Instead of enabling 40 tools one by one, you enable a \"toolset\" like \"browser\" or \"terminal\" and get the right collection.",
+          explanation: "Think of toolsets like a TV channel package. The \"browser\" package gives you navigate, click, screenshot. The \"terminal\" package gives you shell commands and process management. The core bundle (_HERMES_CORE_TOOLS) has ~45 tools that every platform gets.",
+          code: `_HERMES_CORE_TOOLS = [
+    "web_search", "web_extract",
+    "terminal", "process",
+    "read_file", "write_file", "patch", "search_files",
+    "vision_analyze", "image_generate",
+    "browser_navigate", "browser_snapshot", "browser_click",
+    "todo", "memory",
+    "execute_code", "delegate_task",
+    "cronjob",
+    # ... ~45 tools total
+]`,
+          connections: {imports: [], importedBy: ["model_tools.py"]}
+        },
+        {
+          id: "hermes-state",
+          name: "hermes_state.py",
+          subtitle: "Session persistence (SQLite)",
+          desc: "The agent's conversation memory bank. Every chat session (who said what, when, with which model) is saved in a SQLite database with full-text search.",
+          explanation: "Every time you have a conversation with Hermes, it gets saved here. You can search across all past conversations, resume old sessions, and branch conversations. It uses SQLite with WAL mode for concurrent access.",
+          code: `class SessionDB:
+    \"\"\"SQLite-backed session storage with FTS5 search.\"\"\"
+
+    def __init__(self, db_path=None, read_only=False):
+        self.conn = sqlite3.connect(db_path or DEFAULT_DB_PATH)
+        apply_wal_with_fallback(self.conn)
+        self._init_schema()  # Schema version 16
+
+    def search(self, query):
+        \"\"\"FTS5-powered full-text search across all sessions.\"\"\"
+        ...
+
+DEFAULT_DB_PATH = get_hermes_home() / "state.db"`,
+          connections: {imports: ["hermes_constants.py"], importedBy: ["run_agent.py", "cli.py", "gateway/run.py"]}
+        },
+        {
+          id: "hermes-constants",
+          name: "hermes_constants.py",
+          subtitle: "Path resolution (the foundation)",
+          desc: "The address book of the entire project. Every module asks it \"where does Hermes store its files?\" It has zero dependencies, so it can be safely imported from anywhere.",
+          explanation: "Hermes supports multiple profiles (like browser profiles). This file makes sure every module uses the RIGHT directory for the active profile, rather than hardcoding ~/.hermes. It's the foundation everything else builds on.",
+          code: `def get_hermes_home() -> Path:
+    \"\"\"Single source of truth for the Hermes data directory.\"\"\"
+    override = get_hermes_home_override()
+    if override:
+        return Path(override)
+    val = os.environ.get("HERMES_HOME", "").strip()
+    if val:
+        return Path(val)
+    return _get_platform_default_hermes_home()`,
+          connections: {imports: [], importedBy: ["Nearly every module in the project"]}
+        }
+      ]
+    },
+    {
+      id: "cli",
+      name: "CLI Interface",
+      icon: "💻",
+      color: "var(--node-cli)",
+      desc: "The terminal app users interact with directly. Draws a command prompt, handles slash commands, and sends messages to the AI agent. The \"front desk\" of Hermes.",
+      files: ["cli.py", "hermes_cli/commands.py", "hermes_cli/config.py"],
+      connections: ["agent-core", "plugins", "gateway"],
+      modules: [
+        {
+          id: "cli-main",
+          name: "cli.py",
+          subtitle: "HermesCLI class (~11k lines)",
+          desc: "The main terminal application. It draws a command prompt, accepts typed input, routes slash commands to handlers, and sends regular messages to the AI agent.",
+          explanation: "When you type 'hermes' in your terminal, this is what runs. It uses Rich for colorful output and prompt_toolkit for the input line with autocomplete. Slash commands like /help, /model, /new go through process_command(). Regular messages go to AIAgent.run_conversation().",
+          code: `class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
+    def process_command(self, command):
+        cmd_lower = command.lower().strip()
+        _base_word = cmd_lower.split()[0].lstrip("/")
+        _cmd_def = resolve_command(_base_word)
+        canonical = _cmd_def.name if _cmd_def else _base_word
+
+        if canonical in {"quit", "exit"}:
+            return False
+        elif canonical == "help":
+            self.show_help()
+        elif canonical == "tools":
+            self._handle_tools_command(cmd_original)
+        # ... ~50 more elif branches`,
+          connections: {imports: ["hermes_cli/commands.py", "hermes_cli/config.py", "hermes_constants.py", "run_agent.py"], importedBy: []}
+        },
+        {
+          id: "commands",
+          name: "hermes_cli/commands.py",
+          subtitle: "Slash command registry",
+          desc: "The master phone directory of every slash command Hermes understands. Every command has a name, description, category, and optional aliases. All other parts of the system look up commands here.",
+          explanation: "This is the single source of truth for commands. Add a CommandDef here, and it automatically appears in CLI help, gateway dispatch, Telegram bot menus, Slack subcommand routing, and autocomplete — no other files need updating for the command listing.",
+          code: `@dataclass(frozen=True)
+class CommandDef:
+    name: str            # canonical name: "background"
+    description: str     # human-readable description
+    category: str        # "Session", "Configuration", etc.
+    aliases: tuple = ()  # alternative names: ("bg",)
+    args_hint: str = ""  # argument placeholder: "<prompt>"
+    cli_only: bool = False
+    gateway_only: bool = False
+
+COMMAND_REGISTRY = [
+    CommandDef("help", "Show available commands", "Info", aliases=("h", "?")),
+    CommandDef("new", "Start a new conversation", "Session", aliases=("reset",)),
+    CommandDef("model", "Switch the AI model", "Configuration", args_hint="[provider:model]"),
+    # ... ~70 commands total
+]`,
+          connections: {imports: [], importedBy: ["cli.py", "gateway/run.py", "tui_gateway/server.py"]}
+        },
+        {
+          id: "config",
+          name: "hermes_cli/config.py",
+          subtitle: "Configuration management",
+          desc: "Manages all of Hermes' settings. Loads config.yaml, provides defaults for missing values, handles corrupt config files, and offers getters/setters for every setting.",
+          explanation: "This is the 'settings panel.' DEFAULT_CONFIG defines every possible setting with sensible defaults. When your config.yaml is missing keys, they auto-merge from defaults. If your config file gets corrupted, it backs it up automatically and warns you. Three different config loaders exist — CLI, gateway, and subcommands each load config slightly differently.",
+          code: `DEFAULT_CONFIG = {
+    "model": "",
+    "providers": {},
+    "fallback_providers": [],
+    "agent": {
+        "max_turns": 90,
+        "gateway_timeout": 1800,
+        "api_max_retries": 3,
+        "tool_use_enforcement": "auto",
+    },
+    "terminal": {"cwd": "", "backend": "local"},
+    "display": {"skin": "default", "tool_progress_command": False},
+    # ... dozens more sections
+}
+
+def load_config():
+    \"\"\"Load config.yaml, cached on (mtime, size).\"\"\"
+    ...`,
+          connections: {imports: ["hermes_constants.py"], importedBy: ["cli.py", "gateway/run.py", "hermes_cli/plugins.py", "run_agent.py"]}
+        }
+      ]
+    },
+    {
+      id: "gateway",
+      name: "Messaging Gateway",
+      icon: "📡",
+      color: "var(--node-gateway)",
+      desc: "The messaging hub. When Hermes runs as a bot on Telegram, Discord, Slack, etc., this receives messages from users across platforms, routes them to AI agents, and sends responses back.",
+      files: ["gateway/run.py", "gateway/platforms/base.py", "gateway/platforms/*"],
+      connections: ["agent-core", "cli", "cron"],
+      modules: [
+        {
+          id: "gateway-runner",
+          name: "gateway/run.py",
+          subtitle: "GatewayRunner class",
+          desc: "The switchboard operator for multi-platform messaging. Starts all platform adapters, receives messages from users across platforms, routes them to AI agents, and sends responses back.",
+          explanation: "When you run 'hermes gateway start', this is what runs. It boots up adapters for each configured platform (Telegram, Discord, etc.), maintains an agent cache (up to 128 sessions, 1-hour idle timeout), and routes incoming messages to the right agent session. It also sanitizes outbound messages — stripping leaked API keys, suppressing noisy status lines, and redacting provider errors.",
+          code: `class GatewayRunner(GatewayAuthorizationMixin,
+                    GatewayKanbanWatchersMixin,
+                    GatewaySlashCommandsMixin):
+    def __init__(self, config=None):
+        self.config = config or load_gateway_config()
+        self.adapters = {}    # Platform -> BasePlatformAdapter
+        self._prefill_messages = self._load_prefill_messages()
+        self._reasoning_config = self._load_reasoning_config()`,
+          connections: {imports: ["hermes_cli/commands.py", "hermes_cli/config.py", "gateway/platforms/base.py", "run_agent.py"], importedBy: []}
+        },
+        {
+          id: "gateway-base",
+          name: "gateway/platforms/base.py",
+          subtitle: "BasePlatformAdapter (ABC)",
+          desc: "The blueprint that every messaging platform must follow. It defines the interface: connect, disconnect, send messages, handle media. Each platform fills in the details.",
+          explanation: "Think of this as a contract. Any new platform (Telegram, Discord, SMS, etc.) must implement these methods: connect() to start receiving messages, disconnect() for clean shutdown, and send() to deliver a message. The gateway doesn't care which platform it's talking to — they all look the same through this interface.",
+          code: `class BasePlatformAdapter(ABC):
+    supports_code_blocks: bool = False
+    supports_async_delivery: bool = True
+    splits_long_messages: bool = False
+
+    @abstractmethod
+    async def connect(self, *, is_reconnect=False) -> bool: ...
+
+    @abstractmethod
+    async def disconnect(self) -> None: ...
+
+    @abstractmethod
+    async def send(self, chat_id, content, **kw) -> None: ...`,
+          connections: {imports: [], importedBy: ["gateway/run.py", "All platform adapters"]}
+        },
+        {
+          id: "gateway-platforms",
+          name: "Platform Adapters",
+          subtitle: "~20 messaging platforms",
+          desc: "Each platform gets its own adapter that translates between Hermes' internal format and the platform's API. Some are built-in, others load as plugins.",
+          explanation: "Hermes supports Telegram, Discord, Slack, WhatsApp, Signal, Matrix, WeChat, DingTalk, Feishu, QQ, SMS, Email, Home Assistant, Microsoft Teams, and more. Core adapters live in gateway/platforms/. Additional ones (Telegram, Discord, Slack) are loaded as plugins from plugins/platforms/. Each adapter handles platform-specific quirks like message length limits, media types, and threading.",
+          code: `# Built-in adapters in gateway/platforms/:
+# api_server.py   - REST API server
+# signal.py       - Signal messenger
+# bluebubbles.py  - iMessage (via BlueBubbles)
+# weixin.py       - WeChat
+# whatsapp_cloud.py - WhatsApp Cloud API
+# webhook.py      - Generic webhooks
+# yuanbao.py      - Tencent Yuanbao
+# qqbot/          - QQ (subdirectory)
+
+# Plugin-loaded adapters in plugins/platforms/:
+# telegram, discord, slack, matrix, mattermost,
+# email, sms, dingtalk, feishu, homeassistant, irc...`,
+          connections: {imports: ["gateway/platforms/base.py"], importedBy: ["gateway/run.py"]}
+        }
+      ]
+    },
+    {
+      id: "tui",
+      name: "TUI (Terminal UI)",
+      icon: "🎨",
+      color: "var(--node-tui)",
+      desc: "A React-based terminal interface built with Ink. TypeScript owns the screen, Python owns the sessions and AI. They communicate over JSON-RPC.",
+      files: ["ui-tui/src/", "tui_gateway/"],
+      connections: ["agent-core", "cli"],
+      modules: [
+        {
+          id: "tui-ink",
+          name: "ui-tui/ (Ink/React)",
+          subtitle: "Terminal rendering layer",
+          desc: "The screen users see when running 'hermes --tui'. Built with React and Ink (a framework that renders React components to the terminal). Shows the conversation, composer, tool activity, and prompts.",
+          explanation: "This is a full React app, but instead of rendering in a browser, it renders in your terminal. It does NOT run any AI logic — it just displays the conversation and sends your input to the Python backend. The main components are the transcript (chat messages), composer (text input), and activity feed (tool progress).",
+          code: `// app.tsx - Root component
+export function App({ gw }: { gw: GatewayClient }) {
+  const {
+    appActions, appComposer, appProgress,
+    appStatus, appTranscript, gateway
+  } = useMainApp(gw)
+
+  return (
+    <GatewayProvider value={gateway}>
+      <AppLayout
+        actions={appActions}
+        composer={appComposer}
+        progress={appProgress}
+        status={appStatus}
+        transcript={appTranscript}
+      />
+    </GatewayProvider>
+  )
+}`,
+          connections: {imports: ["tui_gateway (via JSON-RPC)"], importedBy: ["hermes --tui command"]}
+        },
+        {
+          id: "tui-gateway",
+          name: "tui_gateway/",
+          subtitle: "Python JSON-RPC backend",
+          desc: "The Python backend behind the TUI. Receives JSON-RPC commands from the TypeScript frontend, manages chat sessions, dispatches slash commands, and streams agent responses back.",
+          explanation: "When you type a message in the TUI, it goes from TypeScript → JSON-RPC over stdio → this Python server → AIAgent. Responses stream back the same way. It also handles slash commands, session management, file completions, and approval prompts.",
+          code: `# Process model:
+# hermes --tui
+#   └─ Node (Ink)  ──stdio JSON-RPC──  Python (tui_gateway)
+#        │                                  └─ AIAgent + tools
+#        └─ renders transcript, composer, prompts
+
+# Key files:
+# server.py      - RPC dispatcher, session management
+# transport.py   - stdio/WebSocket abstraction
+# render.py      - Agent messages -> TUI events
+# slash_worker.py - Slash commands in worker threads
+# ws.py          - WebSocket for dashboard/desktop`,
+          connections: {imports: ["run_agent.py", "hermes_cli/commands.py", "hermes_state.py"], importedBy: ["ui-tui (via JSON-RPC)"]}
+        }
+      ]
+    },
+    {
+      id: "tools",
+      name: "Tools",
+      icon: "🛠️",
+      color: "var(--node-tools)",
+      desc: "The agent's \"hands\" — they let it execute terminal commands, read/write files, browse the web, send messages, delegate to subagents, and more. ~80 tool files, auto-discovered at import.",
+      files: ["tools/registry.py", "tools/*.py"],
+      connections: ["agent-core", "plugins"],
+      modules: [
+        {
+          id: "tool-registry",
+          name: "tools/registry.py",
+          subtitle: "Central tool catalog",
+          desc: "A central phonebook for every tool. Each tool file registers itself here at import time. When the agent needs to know what tools exist or needs to call one, it looks them up here.",
+          explanation: "Think of it like a company directory. Each department (tool file) signs up when the office opens (at import time). The receptionist (model_tools.py) checks this directory to know who's available and where to route calls. Registration is automatic — just calling registry.register() in your file is enough.",
+          code: `class ToolRegistry:
+    def register(self, name, toolset, schema, handler,
+                 check_fn=None, requires_env=None, ...):
+        with self._lock:
+            self._tools[name] = ToolEntry(
+                name=name, toolset=toolset,
+                schema=schema, handler=handler,
+                check_fn=check_fn, ...
+            )
+            self._generation += 1  # Cache invalidation
+
+    def dispatch(self, name, args, task_id=None):
+        entry = self._tools[name]
+        return entry.handler(args, task_id=task_id)
+
+registry = ToolRegistry()  # Global singleton`,
+          connections: {imports: [], importedBy: ["Every tools/*.py file", "model_tools.py"]}
+        },
+        {
+          id: "tool-terminal",
+          name: "tools/terminal_tool.py",
+          subtitle: "Shell command execution",
+          desc: "Executes shell commands across 6 different environments: local, Docker, SSH, Modal, Singularity, and Daytona. Supports background tasks with notifications.",
+          explanation: "This is how the agent actually runs commands on your computer (or in remote environments). When the AI decides to run 'git status' or 'npm install', this tool handles it. It supports running commands in the background and notifying when they finish.",
+          code: `# Supported terminal backends:
+# local       - Run on the host machine
+# docker      - Run inside a Docker container
+# ssh         - Run on a remote server via SSH
+# modal       - Run on Modal (serverless)
+# singularity - Run in a Singularity container
+# daytona     - Run in a Daytona workspace
+
+registry.register(
+    name="terminal",
+    toolset="terminal",
+    schema={...},
+    handler=lambda args, **kw: run_terminal(args),
+)`,
+          connections: {imports: ["tools/registry.py", "tools/environments/*"], importedBy: ["model_tools.py (via registry)"]}
+        },
+        {
+          id: "tool-delegate",
+          name: "tools/delegate_tool.py",
+          subtitle: "Subagent spawning",
+          desc: "Spawns child AI agents with isolated conversations. Children get restricted toolsets — no recursive delegation, no memory writes, no user interaction.",
+          explanation: "The agent can split work by spawning 'helper' agents. Each helper gets its own conversation, can't talk to the user directly, and can't spawn more helpers (unless promoted to 'orchestrator' role). Helpers can run in parallel for batch work.",
+          code: `DELEGATE_BLOCKED_TOOLS = frozenset([
+    "delegate_task",   # no recursive delegation
+    "clarify",         # no user interaction
+    "memory",          # no writes to shared MEMORY.md
+    "send_message",    # no cross-platform side effects
+    "execute_code",    # children should reason step-by-step
+    "cronjob",         # no scheduling more work
+])
+
+# Two roles:
+# role="leaf"         - focused worker (default)
+# role="orchestrator" - can spawn its own workers`,
+          connections: {imports: ["tools/registry.py", "run_agent.py"], importedBy: ["model_tools.py (via registry)"]}
+        },
+        {
+          id: "tool-mcp",
+          name: "tools/mcp_tool.py",
+          subtitle: "MCP server integration",
+          desc: "Connects to external MCP (Model Context Protocol) servers, discovers their tools, and registers them as if they were built-in. Supports auto-reconnection.",
+          explanation: "MCP is a standard protocol for connecting AI agents to external tool servers. This tool lets Hermes talk to any MCP-compatible server (via stdio, HTTP, or SSE) and use its tools seamlessly. The external tools show up alongside built-in ones.",
+          code: `# MCP connection types:
+# stdio  - Spawn a subprocess, talk over stdin/stdout
+# http   - Connect to an HTTP endpoint
+# sse    - Connect via Server-Sent Events
+
+# Features:
+# - Auto-discovery of remote tool schemas
+# - Credential stripping for security
+# - Auto-reconnection on failures
+# - Sampling support (model queries from server)`,
+          connections: {imports: ["tools/registry.py"], importedBy: ["model_tools.py (via registry)"]}
+        }
+      ]
+    },
+    {
+      id: "plugins",
+      name: "Plugin Systems",
+      icon: "🔌",
+      color: "var(--node-plugins)",
+      desc: "Three separate plugin discovery paths: general plugins (hooks, tools, commands), memory providers (swappable memory backends), and model providers (AI API backends).",
+      files: ["hermes_cli/plugins.py", "plugins/", "providers/"],
+      connections: ["agent-core", "tools", "gateway"],
+      modules: [
+        {
+          id: "plugin-general",
+          name: "hermes_cli/plugins.py",
+          subtitle: "General plugin framework",
+          desc: "Discovers plugins from ~/.hermes/plugins/, ./.hermes/plugins/, and pip packages. Gives each plugin a controlled API to register tools, hooks, commands, and middleware.",
+          explanation: "This is the extension system. Third-party developers can write plugins that hook into Hermes at specific points: before/after a tool runs, before/after an AI call, when a session starts/ends. Plugins can also add new tools and CLI commands without touching any core files.",
+          code: `class PluginContext:
+    \"\"\"API given to each plugin's register(ctx) function.\"\"\"
+
+    def register_tool(self, name, toolset, schema, handler, ...):
+        \"\"\"Add a new tool to the agent's toolset.\"\"\"
+        registry.register(name=name, toolset=toolset, ...)
+
+    def register_cli_command(self, name, handler, ...):
+        \"\"\"Add a CLI subcommand: hermes <name> ...\"\"\"
+
+# Available hooks:
+# pre_tool_call, post_tool_call
+# pre_llm_call, post_llm_call
+# on_session_start, on_session_end
+# pre_gateway_dispatch, approval hooks`,
+          connections: {imports: ["hermes_constants.py", "tools/registry.py"], importedBy: ["cli.py", "gateway/run.py", "model_tools.py"]}
+        },
+        {
+          id: "plugin-memory",
+          name: "plugins/memory/",
+          subtitle: "8 memory providers",
+          desc: "Swappable memory backends that let the agent remember things across sessions. Only ONE runs at a time. All implement the same MemoryProvider interface.",
+          explanation: "These are like different brands of notebook the agent can use to remember things. Honcho, Mem0, Supermemory, and others each store memories differently (cloud API, local database, etc.), but they all follow the same pattern: initialize → prefetch memories → sync after each turn → shutdown.",
+          code: `class MemoryProvider(ABC):
+    \"\"\"Interface every memory backend must implement.\"\"\"
+
+    @abstractmethod
+    def is_available(self) -> bool: ...
+
+    @abstractmethod
+    def initialize(self, session_id, **kwargs) -> None: ...
+
+    def prefetch(self, query, *, session_id="") -> str: ...
+
+    def sync_turn(self, user_msg, assistant_response) -> None: ...
+
+    def shutdown(self) -> None: ...
+
+# Providers: honcho, mem0, supermemory, byterover,
+#   hindsight, holographic, openviking, retaindb`,
+          connections: {imports: ["agent/memory_provider.py (ABC)"], importedBy: ["agent/memory_manager.py"]}
+        },
+        {
+          id: "plugin-models",
+          name: "plugins/model-providers/",
+          subtitle: "28 AI model providers",
+          desc: "Every AI model backend (Anthropic, OpenAI, Gemini, Ollama, etc.) is a plugin. Each defines how to authenticate, what models are available, and what API format to use.",
+          explanation: "These let Hermes talk to any AI model. Each provider registers a ProviderProfile with its API URL, auth method, and model list. User plugins override bundled ones (last-writer-wins), so you can customize any provider without forking the repo.",
+          code: `# Example: Anthropic provider
+anthropic = AnthropicProfile(
+    name="anthropic",
+    aliases=("claude", "claude-oauth"),
+    api_mode="anthropic_messages",
+    env_vars=("ANTHROPIC_API_KEY",),
+    base_url="https://api.anthropic.com",
+    auth_type="api_key",
+    default_aux_model="claude-haiku-4-5-20251001",
+)
+register_provider(anthropic)
+
+# 28 providers: anthropic, openai, openrouter, gemini,
+# ollama, deepseek, nvidia, huggingface, minimax, xai...`,
+          connections: {imports: ["providers/base.py"], importedBy: ["providers/__init__.py (lazy discovery)", "run_agent.py"]}
+        }
+      ]
+    },
+    {
+      id: "skills",
+      name: "Skills",
+      icon: "📚",
+      color: "var(--node-skills)",
+      desc: "Instruction documents (SKILL.md files) organized by category. They teach the agent how to perform specific tasks — like recipes. Loaded on demand with progressive disclosure.",
+      files: ["skills/", "optional-skills/", "tools/skills_tool.py"],
+      connections: ["agent-core", "tools"],
+      modules: [
+        {
+          id: "skills-builtin",
+          name: "skills/",
+          subtitle: "72 built-in skills across 18 categories",
+          desc: "Built-in skills that ship with every Hermes install. Organized by category: creative (16), productivity (9), software-development (9), mlops (7), github (6), research (5), and more.",
+          explanation: "Skills are like recipes for the AI. Instead of figuring out from scratch how to 'review a GitHub PR' or 'generate a podcast script,' the agent loads the relevant skill document which gives it step-by-step instructions, best practices, and pitfalls to avoid. Skills are loaded into the conversation on demand, not all at once.",
+          code: `# Skills use YAML frontmatter in SKILL.md:
+# ---
+# name: github-pr-review
+# description: Review pull requests for quality.
+# version: 1.0.0
+# platforms: [linux, macos]
+# metadata:
+#   hermes:
+#     tags: [github, code-review]
+#     category: github
+# ---
+#
+# ## When to Use
+# ...
+# ## Procedure
+# ...
+
+# Categories: creative, productivity, software-development,
+# mlops, github, research, apple, media, data-science,
+# autonomous-ai-agents, computer-use, email, smart-home...`,
+          connections: {imports: [], importedBy: ["tools/skills_tool.py"]}
+        },
+        {
+          id: "skills-optional",
+          name: "optional-skills/",
+          subtitle: "Heavier/niche skills (not active by default)",
+          desc: "Skills that ship with the repo but aren't activated by default. Installed explicitly via 'hermes skills install official/<category>/<skill>'. For specialized or dependency-heavy use cases.",
+          explanation: "These are like advanced cookbook volumes you can add to your shelf. They cover things like blockchain analysis, security auditing, web development frameworks, and more. They're separate because they might need extra dependencies or are only useful to specific users.",
+          code: `# Install an optional skill:
+# hermes skills install official/security/pentest-helper
+
+# Categories: autonomous-ai-agents, blockchain,
+# communication, creative, devops, email, health,
+# mcp, migration, mlops, productivity, research,
+# security, web-development`,
+          connections: {imports: [], importedBy: ["tools/skills_hub.py"]}
+        },
+        {
+          id: "skills-tool",
+          name: "tools/skills_tool.py",
+          subtitle: "Progressive skill loading",
+          desc: "Exposes skills to the agent through a two-tier loading system: skills_list (metadata only, cheap) and skill_view (full content, expensive). Prevents loading all skills at once.",
+          explanation: "To save tokens and money, skills aren't loaded all at once. First, the agent sees a lightweight list (just names and descriptions). When it decides a skill is relevant, it loads the full instructions. This progressive disclosure keeps API costs down.",
+          code: `# Tier 1: skills_list - metadata only (cheap)
+# Returns name, description, tags for all skills
+# Agent can browse without loading full content
+
+# Tier 2: skill_view - full content (expensive)
+# Returns complete SKILL.md + linked files
+# Only loaded when the agent decides a skill is relevant
+
+# Tier 3: linked files
+# Scripts, templates, references from the skill directory`,
+          connections: {imports: ["tools/registry.py", "hermes_constants.py"], importedBy: ["model_tools.py (via registry)"]}
+        }
+      ]
+    },
+    {
+      id: "cron",
+      name: "Cron Scheduler",
+      icon: "⏰",
+      color: "var(--node-cron)",
+      desc: "Lets the agent schedule recurring jobs (daily reports, nightly backups, weekly audits). Jobs stored in JSON, checked every 60 seconds by a background ticker.",
+      files: ["cron/jobs.py", "cron/scheduler.py", "tools/cronjob_tools.py"],
+      connections: ["agent-core", "gateway"],
+      modules: [
+        {
+          id: "cron-jobs",
+          name: "cron/jobs.py",
+          subtitle: "Job storage and management",
+          desc: "Manages scheduled jobs stored in ~/.hermes/cron/jobs.json. Supports cron expressions, duration strings ('30m', '2h'), natural language schedules ('every monday 9am'), and one-shot timestamps.",
+          explanation: "This is the job filing cabinet. Each job has a schedule (when to run), a prompt (what to tell the AI), optional skills to load, and delivery targets (where to send the result — Telegram, Discord, etc.). Uses file-based locking so multiple processes don't corrupt the job store.",
+          code: `# Supported schedule formats:
+# Duration:     "30m", "2h", "1d"
+# "every":      "every 2h", "every monday 9am"
+# Cron:         "0 9 * * *"  (5-field cron expression)
+# One-shot:     "2026-06-01T09:00:00Z"
+
+# Per-job fields:
+# schedule, prompt, skills, model, provider,
+# script (pre-run data collection),
+# context_from (chain job outputs),
+# workdir (run in a specific directory)`,
+          connections: {imports: ["hermes_constants.py"], importedBy: ["cron/scheduler.py", "tools/cronjob_tools.py"]}
+        },
+        {
+          id: "cron-scheduler",
+          name: "cron/scheduler.py",
+          subtitle: "Background tick loop",
+          desc: "The tick() function checks every 60 seconds for due jobs and executes them. Runs as a background thread in the gateway. Uses file-based locking to prevent duplicate runs.",
+          explanation: "Every minute, this wakes up and checks: are any jobs due? If so, it spawns a fresh AIAgent for each due job, runs the prompt, and delivers the result. Each cron session has a 3-minute hard timeout to prevent runaway loops. If something goes wrong, it summarizes the error nicely for chat delivery.",
+          code: `def tick():
+    \"\"\"Check for due jobs and execute them.
+    Called every 60s from the gateway background thread.
+    File lock prevents duplicate ticks across processes.\"\"\"
+
+    with file_lock(TICK_LOCK_PATH):
+        jobs = load_jobs()
+        for job in jobs:
+            if is_due(job):
+                # Spawn AIAgent with 3-minute hard timeout
+                agent = AIAgent(skip_memory=True, ...)
+                result = agent.chat(job["prompt"])
+                deliver(result, job["delivery_targets"])`,
+          connections: {imports: ["cron/jobs.py", "run_agent.py"], importedBy: ["gateway/run.py (background thread)"]}
+        }
+      ]
+    }
+  ],
+
+  // Data flow connections between top-level systems
+  dataFlows: [
+    {from: "cli", to: "agent-core", label: "User messages"},
+    {from: "gateway", to: "agent-core", label: "Platform messages"},
+    {from: "tui", to: "agent-core", label: "JSON-RPC"},
+    {from: "agent-core", to: "tools", label: "Tool calls"},
+    {from: "agent-core", to: "plugins", label: "Hooks & providers"},
+    {from: "agent-core", to: "skills", label: "Skill loading"},
+    {from: "cron", to: "agent-core", label: "Scheduled prompts"},
+    {from: "cron", to: "gateway", label: "Result delivery"},
+    {from: "plugins", to: "tools", label: "Register tools"},
+    {from: "tools", to: "agent-core", label: "Tool results"},
+  ]
+};
+
+// ============================================================
+// APP STATE
+// ============================================================
+
+let currentLevel = 'top';
+let currentSystem = null;
+let currentModule = null;
+let scale = 1;
+let panX = 0, panY = 0;
+let isDragging = false;
+let dragStartX, dragStartY, startPanX, startPanY;
+
+// ============================================================
+// RENDERING
+// ============================================================
+
+function render() {
+  const grid = document.getElementById('nodeGrid');
+  grid.innerHTML = '';
+
+  if (currentLevel === 'top') {
+    renderTopLevel(grid);
+  } else if (currentLevel === 'system') {
+    renderSystemLevel(grid);
+  } else if (currentLevel === 'module') {
+    renderModuleLevel(grid);
+  }
+
+  updateBreadcrumb();
+}
+
+function renderTopLevel(grid) {
+  // Design principles banner
+  const banner = document.createElement('div');
+  banner.style.cssText = 'width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:8px;';
+  banner.innerHTML = `
+    <h3 style="color:var(--accent);font-size:15px;margin-bottom:10px;">Two Sacred Design Properties</h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:250px;">
+        <strong style="color:var(--accent5);font-size:13px;">1. Prompt caching is sacred</strong>
+        <p style="color:var(--text-dim);font-size:13px;margin-top:4px;">Never mutate past context, swap toolsets, or rebuild system prompts mid-conversation. The only exception is context compression.</p>
+      </div>
+      <div style="flex:1;min-width:250px;">
+        <strong style="color:var(--accent3);font-size:13px;">2. The core is a narrow waist</strong>
+        <p style="color:var(--text-dim);font-size:13px;margin-top:4px;">Capability lives at the edges. New features arrive as skills, plugins, or MCP servers — not as core tools (which ship on every API call).</p>
+      </div>
+    </div>
+  `;
+  grid.appendChild(banner);
+
+  DATA.systems.forEach(sys => {
+    const card = createCard(sys.id, sys.icon, sys.name, sys.desc, sys.color, sys.files, () => {
+      currentLevel = 'system';
+      currentSystem = sys;
+      currentModule = null;
+      render();
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderSystemLevel(grid) {
+  const sys = currentSystem;
+
+  const back = document.createElement('button');
+  back.className = 'back-btn';
+  back.innerHTML = '← Back to Overview';
+  back.onclick = () => { currentLevel = 'top'; currentSystem = null; render(); };
+  grid.appendChild(back);
+
+  // System header
+  const header = document.createElement('div');
+  header.style.cssText = 'width:100%;margin-bottom:12px;';
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <span style="font-size:32px;">${sys.icon}</span>
+      <h2 style="font-size:22px;color:${sys.color};">${sys.name}</h2>
+    </div>
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.6;max-width:800px;">${sys.desc}</p>
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">
+      ${sys.connections.map(c => {
+        const target = DATA.systems.find(s => s.id === c);
+        return `<span class="conn-badge"><span class="arrow">↔</span> ${target ? target.name : c}</span>`;
+      }).join('')}
+    </div>
+  `;
+  grid.appendChild(header);
+
+  // Module cards
+  sys.modules.forEach(mod => {
+    const card = createCard(mod.id, null, mod.name, mod.desc, sys.color,
+      mod.subtitle ? [mod.subtitle] : [], () => {
+        currentModule = mod;
+        openDetail(mod, sys.color);
+      });
+    grid.appendChild(card);
+  });
+}
+
+function renderModuleLevel(grid) {
+  // Same as system level but auto-opens detail
+  renderSystemLevel(grid);
+}
+
+function createCard(id, icon, name, desc, color, tags, onClick) {
+  const card = document.createElement('div');
+  card.className = 'node-card';
+  card.style.setProperty('--node-color', color);
+  card.dataset.id = id;
+  card.dataset.name = name.toLowerCase();
+
+  card.innerHTML = `
+    ${icon ? `<div class="node-icon">${icon}</div>` : ''}
+    <h3>${name}</h3>
+    <div class="node-desc">${desc.length > 180 ? desc.substring(0, 180) + '...' : desc}</div>
+    <div class="node-files">
+      ${tags.map(f => `<span class="file-tag">${f}</span>`).join('')}
+    </div>
+    <span class="click-hint">Click to explore →</span>
+  `;
+
+  card.onclick = onClick;
+  return card;
+}
+
+// ============================================================
+// DETAIL PANEL
+// ============================================================
+
+function openDetail(mod, color) {
+  const panel = document.getElementById('detailPanel');
+  const title = document.getElementById('detailTitle');
+  const body = document.getElementById('detailBody');
+
+  title.textContent = mod.name;
+  title.style.color = color;
+
+  let html = '';
+
+  // Plain English explanation
+  if (mod.explanation) {
+    html += `
+      <div class="detail-section">
+        <h4>In Plain English</h4>
+        <div class="explanation">${mod.explanation}</div>
+      </div>
+    `;
+  }
+
+  // Technical description
+  html += `
+    <div class="detail-section">
+      <h4>What It Does</h4>
+      <p>${mod.desc}</p>
+    </div>
+  `;
+
+  // Code snippet
+  if (mod.code) {
+    html += `
+      <div class="detail-section">
+        <h4>Code Snapshot</h4>
+        <pre class="code-block">${highlightCode(mod.code)}</pre>
+      </div>
+    `;
+  }
+
+  // Connections
+  if (mod.connections) {
+    html += `<div class="detail-section"><h4>Connections</h4>`;
+    if (mod.connections.imports && mod.connections.imports.length) {
+      html += `<p style="margin-bottom:8px;"><strong style="color:var(--accent3);">Imports from:</strong></p>
+        <div style="margin-bottom:12px;">${mod.connections.imports.map(i =>
+          `<span class="conn-badge"><span class="arrow">←</span> ${i}</span>`
+        ).join('')}</div>`;
+    }
+    if (mod.connections.importedBy && mod.connections.importedBy.length) {
+      html += `<p style="margin-bottom:8px;"><strong style="color:var(--accent5);">Used by:</strong></p>
+        <div>${mod.connections.importedBy.map(i =>
+          `<span class="conn-badge"><span class="arrow">→</span> ${i}</span>`
+        ).join('')}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Sub-modules (function level)
+  if (mod.submodules && mod.submodules.length) {
+    html += `
+      <div class="detail-section">
+        <h4>Key Internal Modules</h4>
+        <div class="sub-nodes">
+          ${mod.submodules.map(sub => `
+            <div class="sub-node">
+              <h5>${sub.name}</h5>
+              <p>${sub.desc}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  body.innerHTML = html;
+  panel.classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// ============================================================
+// SYNTAX HIGHLIGHTING (simplified)
+// ============================================================
+
+function highlightCode(code) {
+  return code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/(#[^\n]*)/g, '<span class="cm">$1</span>')
+    .replace(/\b(class|def|if|elif|else|for|while|return|import|from|with|as|in|is|not|and|or|try|except|raise|break|continue|pass|async|await|yield|lambda|None|True|False|self|const|let|function|export|abstract)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(str|int|bool|dict|list|tuple|set|Path|Dict|List|Optional|ABC|frozenset)\b/g, '<span class="type">$1</span>')
+    .replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '<span class="str">$0</span>')
+    .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, '<span class="fn">$1</span>');
+}
+
+// ============================================================
+// BREADCRUMB
+// ============================================================
+
+function updateBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  let html = '<span onclick="goToLevel(\'top\')">Overview</span>';
+
+  if (currentSystem) {
+    html += '<span class="sep">/</span>';
+    if (currentModule) {
+      html += `<span onclick="goToLevel('system')">${currentSystem.name}</span>`;
+      html += '<span class="sep">/</span>';
+      html += `<span class="current">${currentModule.name}</span>`;
+    } else {
+      html += `<span class="current">${currentSystem.name}</span>`;
+    }
+  } else {
+    html = '<span class="current" onclick="goToLevel(\'top\')">Overview</span>';
+  }
+
+  bc.innerHTML = html;
+}
+
+function goToLevel(level) {
+  if (level === 'top') {
+    currentLevel = 'top';
+    currentSystem = null;
+    currentModule = null;
+    closeDetail();
+  } else if (level === 'system') {
+    currentLevel = 'system';
+    currentModule = null;
+    closeDetail();
+  }
+  render();
+}
+
+// ============================================================
+// ZOOM & PAN
+// ============================================================
+
+function zoomIn() {
+  scale = Math.min(scale * 1.2, 3);
+  applyTransform();
+}
+
+function zoomOut() {
+  scale = Math.max(scale / 1.2, 0.3);
+  applyTransform();
+}
+
+function resetZoom() {
+  scale = 1; panX = 0; panY = 0;
+  applyTransform();
+}
+
+function applyTransform() {
+  document.getElementById('canvasInner').style.transform =
+    `translate(${panX}px, ${panY}px) scale(${scale})`;
+}
+
+// Mouse wheel zoom
+document.getElementById('canvas').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  scale = Math.max(0.3, Math.min(3, scale * delta));
+  applyTransform();
+}, {passive: false});
+
+// Pan with mouse drag
+const canvas = document.getElementById('canvas');
+canvas.addEventListener('mousedown', (e) => {
+  if (e.target === canvas || e.target.id === 'canvasInner' || e.target.id === 'nodeGrid') {
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    startPanX = panX;
+    startPanY = panY;
+    canvas.style.cursor = 'grabbing';
+  }
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (isDragging) {
+    panX = startPanX + (e.clientX - dragStartX);
+    panY = startPanY + (e.clientY - dragStartY);
+    applyTransform();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+  canvas.style.cursor = '';
+});
+
+// ============================================================
+// SEARCH
+// ============================================================
+
+function filterNodes(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.node-card').forEach(card => {
+    if (!q) {
+      card.style.display = '';
+      card.style.opacity = '1';
+    } else {
+      const matches = card.dataset.name.includes(q) ||
+                     card.textContent.toLowerCase().includes(q);
+      card.style.opacity = matches ? '1' : '0.2';
+    }
+  });
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+
+  if (e.key === 'Escape') {
+    if (document.getElementById('detailPanel').classList.contains('open')) {
+      closeDetail();
+    } else if (currentLevel !== 'top') {
+      goToLevel(currentLevel === 'module' ? 'system' : 'top');
+    }
+  }
+  if (e.key === '+' || e.key === '=') zoomIn();
+  if (e.key === '-') zoomOut();
+  if (e.key === '0') resetZoom();
+  if (e.key === '/' && !e.ctrlKey) {
+    e.preventDefault();
+    document.getElementById('searchBox').focus();
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+
+render();
+</script>
+</body>
+</html>
