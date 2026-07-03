@@ -1456,6 +1456,12 @@ function createNodeElement(node) {
     transform: `translate(${node._x}, ${node._y})`
   });
 
+  // Spawn/collapse CSS animations live on this inner group, never on `group` itself —
+  // those animations drive the `transform` CSS property, which would otherwise take
+  // priority over (and permanently discard) the translate() positioning attribute above.
+  const visual = createSVG("g", { class: "node-visual" });
+  group.appendChild(visual);
+
   const rect = createSVG("rect", {
     x: -cfg.w / 2,
     y: -cfg.h / 2,
@@ -1469,7 +1475,7 @@ function createNodeElement(node) {
     opacity: cfg.opacity,
     class: "node-rect" + (selectedNodeId === node.id ? " selected" : "")
   });
-  group.appendChild(rect);
+  visual.appendChild(rect);
 
   const label = createSVG("text", {
     x: 0,
@@ -1479,7 +1485,7 @@ function createNodeElement(node) {
     class: "node-label"
   });
   label.textContent = node.name;
-  group.appendChild(label);
+  visual.appendChild(label);
 
   if (node._hasChildren) {
     const childCount = node.children.length;
@@ -1489,7 +1495,7 @@ function createNodeElement(node) {
       class: "node-child-count"
     });
     countLabel.textContent = node._expanded ? `${childCount} modules` : `${childCount} inside`;
-    group.appendChild(countLabel);
+    visual.appendChild(countLabel);
   }
 
   group.addEventListener("click", (e) => {
@@ -1580,6 +1586,20 @@ function fullRender() {
 
 // ─── Incremental update render ───
 
+function removeRenderedNode(id, animate) {
+  const el = renderedElements.get(id);
+  if (el) {
+    if (animate) {
+      const visual = el.querySelector(".node-visual") || el;
+      visual.classList.add("node-collapsing");
+      setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
+    } else {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
+  }
+  renderedElements.delete(id);
+}
+
 function updateRender(newNodeIds, removedNodeIds, animate) {
   rebuildGraph();
   computeLayout();
@@ -1597,18 +1617,7 @@ function updateRender(newNodeIds, removedNodeIds, animate) {
     }
   });
 
-  removedNodeIds.forEach(id => {
-    const el = renderedElements.get(id);
-    if (el) {
-      if (animate) {
-        el.classList.add("node-collapsing");
-        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
-      } else {
-        if (el.parentNode) el.parentNode.removeChild(el);
-      }
-      renderedElements.delete(id);
-    }
-  });
+  removedNodeIds.forEach(id => removeRenderedNode(id, animate));
 
   const currentLinkKeys = new Set();
   allLinks.forEach(link => {
@@ -1744,8 +1753,9 @@ function updateRender(newNodeIds, removedNodeIds, animate) {
 
     const i = spawnIndex++;
     const el = createNodeElement(node);
-    el.classList.add("node-spawning");
-    el.style.animationDelay = `${i * 60}ms`;
+    const visual = el.querySelector(".node-visual");
+    visual.classList.add("node-spawning");
+    visual.style.animationDelay = `${i * 60}ms`;
 
     if (parentNode && animate) {
       el.setAttribute("transform", `translate(${parentNode._x}, ${parentNode._y})`);
@@ -1958,11 +1968,7 @@ function handleNodeClick(node) {
     if (node.children) {
       node.children.forEach(c => newIds.add(c.id));
     }
-    removedIds.forEach(id => {
-      const el = renderedElements.get(id);
-      if (el && el.parentNode) el.parentNode.removeChild(el);
-      renderedElements.delete(id);
-    });
+    removedIds.forEach(id => removeRenderedNode(id, true));
     renderedLinks.forEach((el, key) => {
       const parts = key.split("->");
       if (removedIds.has(parts[0]) || removedIds.has(parts[1])) {
@@ -2283,7 +2289,11 @@ function fitAll() {
 
 document.getElementById("search-input").addEventListener("input", (e) => {
   const query = e.target.value.toLowerCase().trim();
-  if (!query) return;
+
+  if (!query) {
+    showDetail(nodeMap[selectedNodeId] || codebaseData);
+    return;
+  }
 
   const results = [];
   function search(node) {
@@ -2295,17 +2305,17 @@ document.getElementById("search-input").addEventListener("input", (e) => {
   }
   search(codebaseData);
 
+  const panel = document.getElementById("detail-content");
+  let html = `<h2>Search: "${escapeHtml(e.target.value)}"</h2>`;
+  html += `<div class="detail-desc">${results.length} result${results.length !== 1 ? "s" : ""} found</div>`;
   if (results.length > 0) {
-    const panel = document.getElementById("detail-content");
-    let html = `<h2>Search: "${escapeHtml(e.target.value)}"</h2>`;
-    html += `<div class="detail-desc">${results.length} result${results.length !== 1 ? "s" : ""} found</div>`;
     html += `<ul class="connections">`;
     results.forEach(r => {
       html += `<li onclick="navigateToNode('${r.id}')"><span class="conn-arrow">▸</span> <strong>${escapeHtml(r.name)}</strong><br><span style="color:#8b949e;font-size:12px">${escapeHtml(r.path || "")}</span></li>`;
     });
     html += `</ul>`;
-    panel.innerHTML = html;
   }
+  panel.innerHTML = html;
 });
 
 // ─── Resize ───
