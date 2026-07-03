@@ -1,0 +1,93 @@
+{
+  "_comment": "Each theme has cssVars (injected as a :root block via __THEME_VARS__) and a nodePalette (hex colors the generation step assigns to top-level branches — not injected into the template; read this file during the narrative-writing step). See references/template-anatomy.md before adding a new theme, especially the node-label contrast warning.",
+
+  "dark-github": {
+    "description": "Default. Matches the original hand-built Hermes mind maps.",
+    "cssVars": {
+      "--bg-primary": "#0d1117",
+      "--bg-secondary": "#161b22",
+      "--text-primary": "#c9d1d9",
+      "--text-muted": "#8b949e",
+      "--text-bright": "#e6edf3",
+      "--border": "#30363d",
+      "--border-hover": "#484f58",
+      "--heading": "#f0c674",
+      "--accent-blue": "#58a6ff",
+      "--accent-blue-light": "#79c0ff",
+      "--accent-green": "#3fb950",
+      "--hover-bg": "#1c2333",
+      "--control-bg": "#21262d",
+      "--node-label-fill": "#0d1117",
+      "--child-count-fill": "rgba(0,0,0,0.5)",
+      "--badge-lang-bg": "#1e3a5f",
+      "--badge-lang-fg": "#79c0ff",
+      "--badge-metric-bg": "#2d1b3d",
+      "--badge-metric-fg": "#d2a8ff",
+      "--badge-core-bg": "#3d1f00",
+      "--badge-core-fg": "#f0c674",
+      "--badge-flag-bg": "#1a3a1a",
+      "--badge-flag-fg": "#7ee787"
+    },
+    "nodePalette": ["#f0c674", "#ff7b72", "#79c0ff", "#7ee787", "#d2a8ff", "#ffa657", "#f778ba", "#a5d6ff", "#56d4dd", "#cdd9e5"]
+  },
+
+  "light": {
+    "description": "Light background, same accent hues re-tuned for contrast on white.",
+    "cssVars": {
+      "--bg-primary": "#ffffff",
+      "--bg-secondary": "#f6f8fa",
+      "--text-primary": "#1f2328",
+      "--text-muted": "#57606a",
+      "--text-bright": "#1f2328",
+      "--border": "#d0d7de",
+      "--border-hover": "#afb8c1",
+      "--heading": "#9a6700",
+      "--accent-blue": "#0969da",
+      "--accent-blue-light": "#218bff",
+      "--accent-green": "#1a7f37",
+      "--hover-bg": "#eef1f4",
+      "--control-bg": "#f6f8fa",
+      "--node-label-fill": "#0d1117",
+      "--child-count-fill": "rgba(0,0,0,0.45)",
+      "--badge-lang-bg": "#ddf4ff",
+      "--badge-lang-fg": "#0969da",
+      "--badge-metric-bg": "#fbefff",
+      "--badge-metric-fg": "#8250df",
+      "--badge-core-bg": "#fff8c5",
+      "--badge-core-fg": "#9a6700",
+      "--badge-flag-bg": "#dafbe1",
+      "--badge-flag-fg": "#1a7f37"
+    },
+    "nodePalette": ["#9a6700", "#cf222e", "#0969da", "#1a7f37", "#8250df", "#bc4c00", "#bf3989", "#0969da", "#1b7c83", "#57606a"]
+  },
+
+  "high-contrast": {
+    "description": "Presentation mode: pure black background, maximal text/border contrast.",
+    "cssVars": {
+      "--bg-primary": "#000000",
+      "--bg-secondary": "#0a0a0a",
+      "--text-primary": "#ffffff",
+      "--text-muted": "#c9c9c9",
+      "--text-bright": "#ffffff",
+      "--border": "#5a5a5a",
+      "--border-hover": "#8a8a8a",
+      "--heading": "#ffd866",
+      "--accent-blue": "#7ec8ff",
+      "--accent-blue-light": "#a8ddff",
+      "--accent-green": "#5eea7e",
+      "--hover-bg": "#1a1a1a",
+      "--control-bg": "#141414",
+      "--node-label-fill": "#000000",
+      "--child-count-fill": "rgba(0,0,0,0.6)",
+      "--badge-lang-bg": "#003a5c",
+      "--badge-lang-fg": "#a8ddff",
+      "--badge-metric-bg": "#3a0a5c",
+      "--badge-metric-fg": "#e6c3ff",
+      "--badge-core-bg": "#5c3a00",
+      "--badge-core-fg": "#ffd866",
+      "--badge-flag-bg": "#0a5c1e",
+      "--badge-flag-fg": "#a8ffb8"
+    },
+    "nodePalette": ["#ffd866", "#ff8a80", "#7ec8ff", "#5eea7e", "#d9a8ff", "#ffb366", "#ff8ac6", "#a8ddff", "#66e0e8", "#e8e8e8"]
+  }
+}
