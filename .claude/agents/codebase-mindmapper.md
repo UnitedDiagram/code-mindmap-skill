@@ -39,7 +39,7 @@ Keep the response short — the parent conversation should not need to re-read
 `scan.json` or the full generated data tree. Return only:
 
 - The final output file's path.
-- One paragraph summarizing what was generated: theme, depth, which
+- One paragraph summarizing what was generated: style, theme, depth, which
   interactive features were enabled/disabled, and the total node count.
 - The verification result (which strategy was used, and whether it passed —
   or an explicit note that verification was skipped).

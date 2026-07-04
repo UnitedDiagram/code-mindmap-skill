@@ -54,11 +54,13 @@ the file tree by hand wastes tokens and drifts from ground truth.
    exists at the target repo's root (see `references/config-schema.md`) and
    the user isn't asking for a change, reuse its settings silently.
 
-2. **Interpret customization.** The user expresses theme/depth/feature
+2. **Interpret customization.** The user expresses style/theme/depth/feature
    preferences in natural language ("make it light-themed and shallow", "no
-   search box"), not a fixed menu. Resolve their request against
-   `references/customization-options.md`, fill in sensible defaults for
-   anything unspecified, and briefly confirm what you resolved it to.
+   search box", "try the circuit board look"), not a fixed menu. Resolve their
+   request against `references/customization-options.md`, fill in sensible
+   defaults for anything unspecified — style defaults to `classic`, today's
+   look, unless they ask for something else — and briefly confirm what you
+   resolved it to.
 
 3. **Scan.**
    ```bash
@@ -79,7 +81,7 @@ the file tree by hand wastes tokens and drifts from ground truth.
 
 5. **Render.**
    ```bash
-   python3 codebase-mindmap/scripts/render.py --data codebaseData.json --theme <theme> --features '<json>' --out <output>.html
+   python3 codebase-mindmap/scripts/render.py --data codebaseData.json --style <classic|circuit> --theme <theme> --features '<json>' --out <output>.html
    ```
    `render.py` validates your data (root id, dangling connection targets,
    invalid badge types) and prints warnings for anything questionable before
@@ -137,6 +139,13 @@ tested asset — only the data you inject changes between runs.
 `assets/themes.json` holds the named color palettes (`dark-github` default,
 `light`, `high-contrast`) each render draws from, plus a `nodePalette` array
 you should assign top-level branch colors from during step 4.
+
+An opt-in second style, `circuit` (a chip/schematic look — see
+`references/customization-options.md`), lives in
+`assets/template-circuit.html` + `assets/circuit-themes.json`, selected via
+`render.py --style circuit`. It's a full fork of `template.html`, not a
+variant of it — see `references/template-anatomy.md` for what it shares and
+what differs. Never used unless the user asks for it.
 
 ## Known Limitations
 

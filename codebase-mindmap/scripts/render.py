@@ -2,16 +2,22 @@
 """Deterministic templater for the codebase-mindmap skill.
 
 Takes the generated mind-map data (codebaseData + crossConnections, written by
-the agent per ../references/data-schema.md) and splices it into
-../assets/template.html via plain, unique-token string replacement — no
+the agent per ../references/data-schema.md) and splices it into a template
+under ../assets/ via plain, unique-token string replacement — no
 Jinja/Mustache dependency, stdlib only. See ../references/template-anatomy.md
 for the full placeholder-token reference.
 
 Usage:
     python3 render.py --data codebaseData.json --out mindmap.html \\
-        [--theme dark-github] [--title "My Project"] [--subtitle "..."] \\
-        [--welcome-intro "..."] [--welcome-blurb "..."] \\
+        [--style classic] [--theme dark-github] [--title "My Project"] \\
+        [--subtitle "..."] [--welcome-intro "..."] [--welcome-blurb "..."] \\
         [--features '{"search": false}']
+
+--style selects which rendering engine + theme-data file to use:
+'classic' (default, today's minimalistic look, assets/template.html +
+assets/themes.json) or 'circuit' (opt-in schematic/blueprint look,
+assets/template-circuit.html + assets/circuit-themes.json). See
+../references/customization-options.md.
 """
 from __future__ import annotations
 
@@ -22,8 +28,11 @@ import sys
 from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE_PATH = SKILL_ROOT / "assets" / "template.html"
-THEMES_PATH = SKILL_ROOT / "assets" / "themes.json"
+
+STYLES = {
+    "classic": {"template": "template.html", "themes": "themes.json"},
+    "circuit": {"template": "template-circuit.html", "themes": "circuit-themes.json"},
+}
 
 DEFAULT_FEATURES = {
     "search": True,
@@ -36,8 +45,16 @@ DEFAULT_FEATURES = {
 VALID_BADGE_TYPES = {"lang", "metric", "core", "flag"}
 
 
-def load_themes() -> dict:
-    return json.loads(THEMES_PATH.read_text())
+def resolve_style(style: str) -> dict:
+    if style not in STYLES:
+        available = ", ".join(sorted(STYLES))
+        raise SystemExit(f"error: unknown style '{style}'. Available: {available}")
+    return STYLES[style]
+
+
+def load_themes(style: str) -> dict:
+    themes_path = SKILL_ROOT / "assets" / resolve_style(style)["themes"]
+    return json.loads(themes_path.read_text())
 
 
 def build_theme_vars_block(theme_name: str, themes: dict) -> str:
@@ -111,15 +128,17 @@ def render(
     welcome_blurb: str,
     features: dict,
     out_path: Path,
+    style: str = "classic",
 ) -> list[str]:
     warnings = validate_data(data)
 
-    themes = load_themes()
+    template_path = SKILL_ROOT / "assets" / resolve_style(style)["template"]
+    themes = load_themes(style)
     theme_vars_block = build_theme_vars_block(theme_name, themes)
 
     resolved_features = {**DEFAULT_FEATURES, **features}
 
-    template = TEMPLATE_PATH.read_text()
+    template = template_path.read_text()
 
     replacements = {
         "__TITLE__": html.escape(title),
@@ -147,6 +166,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", required=True, help="Path to a JSON file with {codebaseData, crossConnections}")
     parser.add_argument("--out", required=True, help="Output HTML file path")
+    parser.add_argument("--style", default="classic",
+                         help="Visual style: 'classic' (default, minimalistic) or 'circuit' "
+                              "(schematic/blueprint look). See references/customization-options.md")
     parser.add_argument("--theme", default="dark-github", help="Theme name from assets/themes.json (default: dark-github)")
     parser.add_argument("--title", default=None, help="Page title / sidebar heading (default: codebaseData.name)")
     parser.add_argument("--subtitle", default="Interactive mind map. Hover to preview, click to explore.")
@@ -182,6 +204,7 @@ def main():
         welcome_blurb=args.welcome_blurb,
         features=features,
         out_path=out_path,
+        style=args.style,
     )
 
     for w in warnings:

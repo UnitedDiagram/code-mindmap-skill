@@ -10,6 +10,7 @@ cache of resolved customization — never required for the skill to function.
   "schema_version": 1,
   "generated_at": "2026-07-02T00:00:00Z",
   "output_path": "./my-project-mindmap.html",
+  "style": "classic",
   "theme": "dark-github",
   "depth": "standard",
   "features": {
@@ -28,7 +29,8 @@ cache of resolved customization — never required for the skill to function.
 |---|---|
 | `schema_version` | Bump if this shape ever changes incompatibly. |
 | `output_path` | Where the last generated file was written, relative to the target repo root. |
-| `theme` | Resolved theme name from `assets/themes.json` (see `customization-options.md`). |
+| `style` | `classic` \| `circuit` — resolved visual style (see `customization-options.md`). A config file written before this field existed has no `style` key at all; treat that as `classic` on read, not as an error or a reason to bump `schema_version`. |
+| `theme` | Resolved theme name from `assets/themes.json` (`classic`) or `assets/circuit-themes.json` (`circuit`) — see `customization-options.md`. |
 | `depth` | `shallow` \| `standard` \| `deep` (see `customization-options.md`). |
 | `features` | The resolved feature-flag object also injected as `__FEATURES__`. |
 | `scope` | `null` for the whole repo, or a relative path if the user scoped generation to a subdirectory ("just the agent/ folder"). |

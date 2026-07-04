@@ -1,0 +1,12 @@
+{
+  "name": "codebase-mindmap-marketplace",
+  "description": "Marketplace for the codebase-mindmap Claude Code plugin.",
+  "owner": { "name": "UnitedDiagram" },
+  "plugins": [
+    {
+      "name": "codebase-mindmap",
+      "source": "./",
+      "description": "Generates an interactive, single-file HTML mind map of a codebase's architecture."
+    }
+  ]
+}

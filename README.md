@@ -19,13 +19,24 @@ on top of that skeleton.
 
 ## Install
 
+### Claude Code, via `/plugin`
+
+```
+/plugin marketplace add UnitedDiagram/code-mindmap-skill
+/plugin install codebase-mindmap@codebase-mindmap-marketplace
+```
+
+### Any tool, via symlink
+
 ```bash
 ./codebase-mindmap/install.sh
 ```
 
 Symlinks the skill into whichever of Claude Code / Cursor / Codex CLI are set
 up on your machine. See `--help` for scoping to a single project instead of
-your user config.
+your user config. Prefer this over the plugin install if you want local edits
+to the skill to take effect immediately without reinstalling, or if you use
+Cursor or Codex CLI.
 
 ## Usage
 

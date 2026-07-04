@@ -1,0 +1,13 @@
+{
+  "name": "codebase-mindmap",
+  "displayName": "Codebase Mind Map",
+  "version": "1.0.0",
+  "description": "Generates an interactive, single-file HTML mind map of a codebase's architecture.",
+  "author": { "name": "UnitedDiagram" },
+  "homepage": "https://github.com/UnitedDiagram/code-mindmap-skill",
+  "repository": "https://github.com/UnitedDiagram/code-mindmap-skill",
+  "license": "MIT",
+  "keywords": ["architecture", "diagram", "mindmap", "visualization", "onboarding"],
+  "skills": "./codebase-mindmap",
+  "agents": ["./.claude/agents/codebase-mindmapper.md"]
+}

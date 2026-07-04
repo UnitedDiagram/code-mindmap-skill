@@ -65,6 +65,47 @@ wrapper group.
   sites that wire up search, hover preview, breadcrumb, and legend visibility.
   This mechanism didn't exist in the original file at all.
 
+## A second style: `template-circuit.html`
+
+`assets/template-circuit.html` is a full fork of this file for the opt-in
+`circuit` style (see `customization-options.md`), not a variant driven by a
+runtime flag inside one shared file — it was created by copying
+`template.html` and editing only:
+
+- the `<style>` block (variables from `assets/circuit-themes.json`'s
+  `--s-*` namespace instead of this file's `--bg-primary`/`--text-primary`/
+  etc.)
+- `DEPTH_CONFIG` (chip sizing instead of rounded-card sizing)
+- `createNodeElement` (sharp-cornered chip + colored edge stripe from
+  `node.color` + a via/junction ring for any node referenced in
+  `crossConnections`, instead of a full-color-filled rounded rect)
+- `createLinkPath` and the equivalent inline path string inside
+  `updateRender`'s position-interpolation loop (both now emit a strict
+  right-angle "Manhattan" path instead of a cubic bezier — if you edit one,
+  edit the other, they must stay in sync)
+- `renderCrossConnections` (a dashed "jumper" trace routed over a shared rail
+  plus diamond via-pads, instead of a bezier dashed line)
+- `showDetail` (a spec-sheet layout: tag row, ruled description, a "Net
+  list"/"Contains" section with a color swatch per entry, instead of
+  badge-pill/code-block markup)
+- one small addition with no equivalent in `template.html`: a
+  `crossConnectedIds` set (`new Set(crossConnections.flatMap(...))`),
+  computed once at load, so `createNodeElement` knows whether to draw the via
+  ring
+
+Every other function, every element ID, and the placeholder-token contract
+above are identical between the two files — including the `.node-visual`/
+`.node-group` transform-vs-animation separation, which was preserved as-is
+when forking. `node.color` is a plain hex string in both; this template just
+reinterprets it as a stripe/trace accent instead of a fill, so there is no
+`data-schema.md` change between styles.
+
+One known trade-off: the two files share roughly 90% of their JS by
+duplication (`flattenTree`, `computeLayout`, `getDataPath`, `navigateToNode`,
+etc. are copy-pasted, not shared). A bug fix to that shared logic must be
+applied to both files by hand — the single self-contained-file, no-build-step
+output requirement rules out factoring out a shared JS module.
+
 ## Warning: not every color is a theme variable
 
 `.node-label { fill: var(--node-label-fill) }` exists to keep node label text

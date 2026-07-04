@@ -1,0 +1,54 @@
+{
+  "_comment": "Theme variants for the 'circuit' visual style (assets/template-circuit.html) — see themes.json's own comment for the general contract (cssVars injected as :root via __THEME_VARS__, nodePalette read by the agent during the narrative step, never injected into the template). Variable names here are circuit-specific (--s-bg, --s-panel, --s-panel-border, --s-ink, --s-ink-dim, --s-accent, --s-accent-strong, --s-solder, --s-hover-bg, --s-grid-dot) because template-circuit.html's CSS is written against this namespace, not template.html's --bg-primary/--text-primary/etc. — the two template files' CSS are never loaded together, so there is no collision, only a deliberate split so classic's themes.json is never touched by circuit changes. nodePalette hues intentionally echo the matching theme in themes.json (same brand colors), just reinterpreted here as a chip's edge-stripe/trace color instead of a full node fill.",
+
+  "dark-github": {
+    "description": "Default for the circuit style. A dark PCB-substrate palette: near-black with a green undertone, copper/amber accent, silver-grey solder/via color.",
+    "cssVars": {
+      "--s-bg": "#0a1310",
+      "--s-panel": "#0f1a16",
+      "--s-panel-border": "#1c2b24",
+      "--s-ink": "#e9efe9",
+      "--s-ink-dim": "#7f9389",
+      "--s-accent": "#d99a5c",
+      "--s-accent-strong": "#f0b478",
+      "--s-solder": "#b9c8c0",
+      "--s-hover-bg": "#16221c",
+      "--s-grid-dot": "rgba(233, 239, 233, 0.05)"
+    },
+    "nodePalette": ["#d99a5c", "#e0776b", "#6a93c9", "#4fa8a0", "#c97a94", "#b8a83f", "#a58fd9", "#5fc9c2", "#8fae7a", "#9fb0a8"]
+  },
+
+  "light": {
+    "description": "Drafting-vellum variant: pale cool paper background, deepened copper/net hues for contrast on light ground.",
+    "cssVars": {
+      "--s-bg": "#eef1ee",
+      "--s-panel": "#e3e9e3",
+      "--s-panel-border": "#c7d1c8",
+      "--s-ink": "#16211c",
+      "--s-ink-dim": "#55665c",
+      "--s-accent": "#9c5f28",
+      "--s-accent-strong": "#7a4a1f",
+      "--s-solder": "#57665f",
+      "--s-hover-bg": "#d9e2d9",
+      "--s-grid-dot": "rgba(22, 33, 28, 0.07)"
+    },
+    "nodePalette": ["#9c5f28", "#a8503f", "#35588c", "#1f7a72", "#9c3f5c", "#7a6f1f", "#6b4fa8", "#237a73", "#4f6b3a", "#5c6b64"]
+  },
+
+  "high-contrast": {
+    "description": "Presentation mode: pure black substrate, maximal ink contrast, brightened copper/net hues.",
+    "cssVars": {
+      "--s-bg": "#000000",
+      "--s-panel": "#0a0a0a",
+      "--s-panel-border": "#4a4a4a",
+      "--s-ink": "#ffffff",
+      "--s-ink-dim": "#cfcfcf",
+      "--s-accent": "#ffb066",
+      "--s-accent-strong": "#ffc98a",
+      "--s-solder": "#e6ece8",
+      "--s-hover-bg": "#161616",
+      "--s-grid-dot": "rgba(255, 255, 255, 0.07)"
+    },
+    "nodePalette": ["#ffb066", "#ff9678", "#7fb2ff", "#5be0d6", "#ff9dbd", "#e0d16a", "#c2a8ff", "#7fe8e0", "#b8e0a0", "#d8e0da"]
+  }
+}
