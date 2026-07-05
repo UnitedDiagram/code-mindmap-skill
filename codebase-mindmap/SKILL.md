@@ -59,12 +59,16 @@ installed through a plugin.
    exists at the target repo's root (see `<skill-root>/references/config-schema.md`)
    and the user isn't asking for a change, reuse its settings silently.
 
-2. **Interpret customization.** The user expresses theme/depth/feature
-   preferences in natural language ("make it light-themed and shallow", "no
-   search box"), not a fixed menu. Resolve their request against
+2. **Run the first-run customization check.** The user can express theme/depth/
+   feature preferences in natural language ("make it light-themed and shallow",
+   "no search box"), not a fixed menu. Resolve their request against
    `<skill-root>/references/customization-options.md`, fill in sensible
    defaults for anything unspecified, and briefly confirm what you resolved it
-   to.
+   to. If there is no prior `.mindmap-config.json` and the user did not already
+   specify customization, ask one compact question before scanning:
+   `Choose map style: theme (dark/light/high contrast), depth (shallow/standard/deep), and features (all on or simplified). Recommended: dark, standard, all features.`
+   In Codex environments with structured choice tools, use them; otherwise ask
+   as plain text.
 
 3. **Scan.**
    ```bash
@@ -91,6 +95,10 @@ installed through a plugin.
    `render.py` validates your data (root id, dangling connection targets,
    invalid badge types) and prints warnings for anything questionable before
    writing the file — read its output.
+
+   After a successful render, write `.mindmap-config.json` at the target repo's
+   root with the resolved output path, theme, depth, feature flags, scope, and
+   verification choice (if known) so future reruns can reuse those choices.
 
 6. **Verify** (optional, user's choice — never assume Playwright is
    available). See `<skill-root>/references/verification-strategies.md` for the

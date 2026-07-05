@@ -9,6 +9,16 @@ If the target directory already has a `.mindmap-config.json` (see
 `config-schema.md`) and the user doesn't mention changing anything, reuse it
 silently — that's the whole point of persisting it.
 
+If there is no `.mindmap-config.json` and the user did not mention any
+customization, ask once before scanning:
+
+```text
+Choose map style: theme (dark/light/high contrast), depth (shallow/standard/deep), and features (all on or simplified). Recommended: dark, standard, all features.
+```
+
+Use structured choice tools when the host environment offers them; otherwise ask
+the same question in plain text.
+
 ## Theme
 
 Controls `__THEME_VARS__` (a named palette from `assets/themes.json`).

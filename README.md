@@ -56,8 +56,11 @@ thread and invoke the plugin with `@`.
 ## Usage
 
 Ask your agent to "map this codebase" or "generate an interactive
-architecture diagram" for a repo. The full workflow — scanning, writing the
-narrative, rendering, and optional verification — is documented in
+architecture diagram" for a repo. On the first run for a repo, the skill asks
+you to choose theme, depth, and feature preferences before scanning; later runs
+reuse those choices from `.mindmap-config.json` unless you ask to change them.
+The full workflow — customization, scanning, writing the narrative, rendering,
+and optional verification — is documented in
 [`codebase-mindmap/SKILL.md`](codebase-mindmap/SKILL.md), which is the source
 of truth for how this skill behaves in every tool.
 

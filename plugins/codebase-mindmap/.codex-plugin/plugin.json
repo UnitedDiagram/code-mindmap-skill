@@ -28,7 +28,7 @@
     ],
     "websiteURL": "https://github.com/UnitedDiagram/code-mindmap-skill",
     "defaultPrompt": [
-      "Map this codebase"
+      "Map this codebase and ask me for customization choices first"
     ]
   }
 }
