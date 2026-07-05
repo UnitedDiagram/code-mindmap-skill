@@ -63,21 +63,30 @@ The onboarding rationale and audit are documented in
    and the user isn't asking for a change, reuse its customization and
    onboarding intent silently.
 
-2. **Ground the onboarding in repo facts before asking.** Before any first-run
-   questions, inspect the target repo just enough to avoid asking discoverable
+2. **Gate onboarding on Plan Mode.** If there is no prior
+   `.mindmap-config.json`, or the user asks to change the audience, purpose,
+   scope, emphasis, output preferences, or verification, enter or confirm the
+   host coding agent's native Plan Mode before asking onboarding questions. If
+   Plan Mode is unavailable or cannot be confirmed, hard stop with exactly:
+   ```text
+   Onboarding requires Plan Mode so you get prompted choices. Switch this coding agent to Plan Mode, then ask again.
+   ```
+   Do not inspect further, ask wizard questions, run `scan.py`, or delegate to
+   a subagent until Plan Mode is active.
+
+3. **Ground the onboarding in repo facts before asking.** Once Plan Mode is
+   active, inspect the target repo just enough to avoid asking discoverable
    questions: README, manifests, obvious entry points, top-level directories,
    and any existing architecture docs. Do not run the full scan yet.
 
-3. **Run the planning-mode onboarding wizard.** If there is no prior
-   `.mindmap-config.json`, or the user asks to change the audience, purpose,
-   scope, emphasis, output preferences, or verification, follow
+4. **Run the Plan-Mode-gated onboarding wizard.** Follow
    `<skill-root>/references/customization-options.md`. Ask for the goal and
    audience, scope and emphasis, then output preferences. Use the user's
    natural-language request to skip any question they already answered. Agents
    must not run `scan.py` until all required choices are answered or explicitly
    defaulted in a resolved brief.
 
-4. **Summarize the resolved brief.** Before scanning, state the resolved brief
+5. **Summarize the resolved brief.** Before scanning, state the resolved brief
    in this shape, filling in the placeholders:
    ```text
    I'll map {scope} for {audience} to answer {goal} with {depth}, {theme}, {features}, and {verification}.
@@ -85,7 +94,7 @@ The onboarding rationale and audit are documented in
    If the summary conflicts with the user's intent, stop and correct it before
    scanning.
 
-5. **Scan.**
+6. **Scan.**
    ```bash
    python3 <skill-root>/scripts/scan.py <target-path> --depth <shallow|standard|deep> --out scan.json
    ```
@@ -94,7 +103,7 @@ The onboarding rationale and audit are documented in
    `<skill-root>/references/language-support.md`) classes/functions/imports
    per file. It contains zero narrative content.
 
-6. **Write the narrative.** Read `scan.json`, then selectively read the actual
+7. **Write the narrative.** Read `scan.json`, then selectively read the actual
    files it points to (READMEs, entry points, architecturally-significant
    modules) and produce the full `codebaseData` tree — the same shape
    `scan.json` scaffolded, now with `desc`, `code`, `badges`, and
@@ -103,7 +112,7 @@ The onboarding rationale and audit are documented in
    in `<skill-root>/references/data-schema.md` — read it before writing your
    first node.
 
-7. **Render.**
+8. **Render.**
    ```bash
    python3 <skill-root>/scripts/render.py --data codebaseData.json --theme <theme> --features '<json>' --out <output>.html
    ```
@@ -116,24 +125,25 @@ The onboarding rationale and audit are documented in
    verification choice (if known), and onboarding intent fields so future
    reruns can reuse those choices.
 
-8. **Verify** (optional, user's choice — never assume Playwright is
+9. **Verify** (optional, user's choice — never assume Playwright is
    available). See `<skill-root>/references/verification-strategies.md` for the
    three options (automated Playwright check, agent-driven manual spot-check,
    or skip) and how to pick between them.
 
-9. **Preview and hand off.**
+10. **Preview and hand off.**
 
 ### Multi-agent onboarding guidance
 
-- **Codex:** Use structured choice prompts when available. Ask no more than
-  three short questions in a single round, then continue only after the
-  resolved brief is complete.
-- **Claude Code:** The parent conversation collects onboarding answers and
-  passes the resolved brief to any delegated mindmapper subagent. The subagent
-  should not re-ask unless the brief is incomplete or conflicts with
-  `SKILL.md`.
-- **Cursor and other agents:** Use the same wizard questions as plain numbered
-  choices, preserve the resolved brief, and do not scan until it is complete.
+- **Codex:** Switch to or confirm Plan Mode before structured choices. Ask no
+  more than three short questions in a single round, then continue only after
+  the resolved brief is complete.
+- **Claude Code:** Use the native planning mode if available. The parent
+  conversation collects onboarding answers in that mode and passes the resolved
+  brief to any delegated mindmapper subagent. If planning mode is unavailable
+  or cannot be confirmed, hard stop with the Plan Mode message above.
+- **Cursor and other agents:** Use the host's native planning mode if one
+  exists. If the host has no confirmable planning mode, hard stop with the Plan
+  Mode message above rather than silently emulating it.
 
 ### Delegating to a subagent (Claude Code only)
 

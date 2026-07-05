@@ -8,28 +8,35 @@ onboarding brief explicitly affects its copy.
 
 ## Current behavior
 
-- First-run onboarding currently asks only for map style: theme, depth, and
-  feature simplification.
-- The agent can scan before learning the user's purpose, audience, target
-  scope, or desired emphasis.
-- Reruns can reuse `.mindmap-config.json`, but the persisted shape only records
-  output customization, not the reason the map exists.
+- First-run onboarding asks for purpose, audience, scope, emphasis, style, and
+  verification before scanning.
+- Reruns can reuse `.mindmap-config.json`, including onboarding intent, unless
+  the user asks to change it.
+- The remaining gap is mode control: a Markdown skill cannot force the host app
+  to switch modes by itself.
 
 ## Gaps
 
 - A new contributor, reviewer, and maintainer need different explanations from
   the same file tree.
-- The old compact prompt does not force the agent to distinguish discoverable
-  repo facts from user intent.
-- Claude subagent delegation can lose the planning context if the parent
-  thread does not collect and pass the resolved brief first.
-- Verification choice is easy to defer until after rendering, even though it
-  can affect the user's expectations for turnaround and confidence.
+- A Plan-Mode-style prompt without actual mode control can still let an agent
+  proceed without structured choices in hosts that support a real Plan Mode.
+- Claude subagent delegation can lose the planning context if the parent thread
+  does not collect and pass the resolved brief from planning mode first.
+- Unsupported hosts need an explicit hard stop rather than a silent fallback to
+  plain text prompts.
 
 ## Recommended onboarding prompt
 
-Before scanning, inspect the target repo enough to avoid asking about facts the
-agent can discover from local files. Then ask only for missing intent.
+Before scanning, enter or confirm the host coding agent's native Plan Mode. If
+Plan Mode is unavailable or cannot be confirmed, hard stop with exactly:
+
+```text
+Onboarding requires Plan Mode so you get prompted choices. Switch this coding agent to Plan Mode, then ask again.
+```
+
+After Plan Mode is active, inspect the target repo enough to avoid asking about
+facts the agent can discover from local files. Then ask only for missing intent.
 
 Full-wizard prompt:
 
@@ -53,22 +60,25 @@ I'll map {scope} for {audience} to answer {goal} with {depth}, {theme},
 {features}, and {verification}.
 ```
 
-Do not run `scan.py` until this brief is complete.
+Do not run `scan.py` until Plan Mode is active and this brief is complete.
 
 ## Multi-agent behavior
 
-- Codex should use structured choice prompts when available and cap each round
-  at three short questions.
-- Claude Code should collect the brief in the parent thread before delegating
-  to `.claude/agents/codebase-mindmapper.md`.
-- Cursor and other agents should present the same wizard as plain numbered
-  choices and preserve the resolved brief in their working notes.
+- Codex should switch to or confirm Plan Mode before structured choices and cap
+  each round at three short questions.
+- Claude Code should use its native planning mode if available, collect the
+  brief in the parent thread, then delegate to
+  `.claude/agents/codebase-mindmapper.md`.
+- Cursor and other agents should use a native planning mode if one exists. If
+  no planning mode can be confirmed, they must hard stop with the Plan Mode
+  message instead of silently emulating it.
 
 ## Acceptance criteria
 
-- First runs with no `.mindmap-config.json` ask the full wizard before
-  scanning.
+- First runs with no `.mindmap-config.json` enter or confirm Plan Mode before
+  asking the full wizard or scanning.
 - User-provided preferences are reused without redundant questions.
 - Reruns with `.mindmap-config.json` reuse saved customization and onboarding
   intent unless the user asks to change them.
+- Unsupported hosts hard stop with the exact Plan Mode message.
 - The source skill and packaged plugin mirror document the same behavior.

@@ -9,16 +9,24 @@ If the target directory already has a `.mindmap-config.json` (see
 `config-schema.md`) and the user doesn't mention changing anything, reuse it
 silently — that's the whole point of persisting it.
 
-First-run onboarding is a planning-mode wizard, not just a style picker. If
+First-run onboarding is a Plan-Mode-gated wizard, not just a style picker. If
 there is no `.mindmap-config.json`, or the user asks to change the intent or
-customization, inspect the target repo enough to avoid asking discoverable
-questions, then ask for missing intent before scanning.
+customization, enter or confirm the host coding agent's native Plan Mode before
+asking onboarding questions.
 
-Use structured choice tools when the host environment offers them. Otherwise
-ask the same questions in plain text. In Codex, ask no more than three short
-questions per round.
+If Plan Mode is unavailable or cannot be confirmed, hard stop with exactly:
 
-## Planning-mode onboarding wizard
+```text
+Onboarding requires Plan Mode so you get prompted choices. Switch this coding agent to Plan Mode, then ask again.
+```
+
+Do not inspect further, ask wizard questions, run `scan.py`, or delegate to a
+subagent until Plan Mode is active.
+
+Use structured choice tools when the host environment offers them after Plan
+Mode is active. In Codex, ask no more than three short questions per round.
+
+## Plan-Mode-gated onboarding wizard
 
 Ask these in order, skipping anything the user already answered:
 

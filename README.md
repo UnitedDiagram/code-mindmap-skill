@@ -56,9 +56,9 @@ thread and invoke the plugin with `@`.
 ## Usage
 
 Ask your agent to "map this codebase" or "generate an interactive
-architecture diagram" for a repo. On the first run for a repo, the skill uses a
-planning-mode onboarding prompt to lock goal, audience, scope, emphasis, style,
-and verification before scanning; later runs reuse those choices from
+architecture diagram" for a repo. On the first run for a repo, the skill
+requires the coding agent's Plan Mode before it locks goal, audience, scope,
+emphasis, style, and verification choices; later runs reuse those choices from
 `.mindmap-config.json` unless you ask to change them. The full workflow —
 onboarding, scanning, writing the narrative, rendering, and optional
 verification — is documented in

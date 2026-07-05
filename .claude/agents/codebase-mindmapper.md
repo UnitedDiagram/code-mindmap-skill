@@ -23,12 +23,13 @@ it.
    language support, verification strategies, config schema) — load them on
    demand, not all up front.
 2. Follow the workflow in SKILL.md exactly: resolve target + prior config,
-   apply the onboarding brief supplied by the parent conversation, inspect repo
-   facts needed to validate that brief, run `scripts/scan.py`, read the flagged
-   files and write the narrative `codebaseData`, run `scripts/render.py`, then
-   verify using whichever strategy fits. If the parent did not supply a
-   complete onboarding brief, stop and return the missing questions instead of
-   scanning.
+   require a complete onboarding brief collected by the parent conversation in
+   a native planning mode, inspect repo facts needed to validate that brief, run
+   `scripts/scan.py`, read the flagged files and write the narrative
+   `codebaseData`, run `scripts/render.py`, then verify using whichever
+   strategy fits. If the parent did not supply a complete Plan-Mode-collected
+   onboarding brief, stop and return exactly:
+   `Onboarding requires Plan Mode so you get prompted choices. Switch this coding agent to Plan Mode, then ask again.`
 3. If anything in SKILL.md conflicts with what you'd otherwise assume (e.g.
    the root node's `id` contract, or the badge `type` field), SKILL.md and its
    references win — they're kept in sync with the actual template/scripts;
