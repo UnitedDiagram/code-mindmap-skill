@@ -90,6 +90,7 @@ body {
 
 #detail-content {
   padding: 20px 24px;
+  min-width: 0;
 }
 
 #detail-content h2 {
@@ -99,6 +100,7 @@ body {
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
 }
 
 #detail-content .detail-path {
@@ -110,6 +112,9 @@ body {
   padding: 6px 10px;
   border-radius: 4px;
   display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 #detail-content .detail-desc {
@@ -117,6 +122,7 @@ body {
   line-height: 1.7;
   color: var(--text-primary);
   margin-bottom: 16px;
+  overflow-wrap: anywhere;
 }
 
 #detail-content .detail-desc.detail-desc-muted {
@@ -149,6 +155,7 @@ body {
   overflow-x: auto;
   white-space: pre;
   margin-bottom: 12px;
+  max-width: 100%;
 }
 
 #detail-content .connections {
@@ -165,6 +172,7 @@ body {
   border-left: 3px solid var(--accent-green);
   cursor: pointer;
   transition: background 0.15s;
+  overflow-wrap: anywhere;
 }
 
 #detail-content .connections li:hover {
@@ -179,16 +187,20 @@ body {
 #detail-content .connections li .conn-meta {
   color: var(--text-muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .badge {
   display: inline-block;
+  max-width: 100%;
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 11px;
   font-weight: 500;
   margin-right: 4px;
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .badge-lang { background: var(--badge-lang-bg); color: var(--badge-lang-fg); }
@@ -270,12 +282,14 @@ body {
   z-index: 5;
   backdrop-filter: blur(8px);
   transition: opacity 0.3s;
+  overflow-wrap: anywhere;
 }
 
 #breadcrumb span {
   cursor: pointer;
   color: var(--accent-blue);
   transition: color 0.15s;
+  overflow-wrap: anywhere;
 }
 
 #breadcrumb span:hover { color: var(--accent-blue-light); }
@@ -307,6 +321,8 @@ body {
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
+  max-width: 260px;
+  overflow-wrap: anywhere;
 }
 
 #legend .legend-item:last-child { margin-bottom: 0; }
@@ -660,15 +676,56 @@ function createSVG(tag, attrs) {
   return el;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
 function truncateText(str, maxLen) {
   if (!str || str.length <= maxLen) return str || "";
   return str.substring(0, maxLen - 3) + "...";
+}
+
+function truncateSvgText(str, boxWidth, fontSize) {
+  const text = str || "";
+  const maxChars = Math.max(6, Math.floor((boxWidth - 24) / (fontSize * 0.58)));
+  return truncateText(text, maxChars);
+}
+
+function appendSvgTitle(el, text) {
+  if (!text) return;
+  const title = createSVG("title");
+  title.textContent = text;
+  el.appendChild(title);
+}
+
+function createEl(tag, attrs, text) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") el.className = v;
+    else el.setAttribute(k, v);
+  }
+  if (text !== undefined && text !== null) el.textContent = text;
+  return el;
+}
+
+function appendDetailSection(panel, title) {
+  const section = createEl("div", { class: "detail-section" });
+  section.appendChild(createEl("h3", null, title));
+  panel.appendChild(section);
+  return section;
+}
+
+function createConnectionItem(targetId, arrow, primaryText, suffixText, metaText) {
+  const li = createEl("li");
+  li.addEventListener("click", () => navigateToNode(targetId));
+
+  li.appendChild(createEl("span", { class: "conn-arrow" }, arrow));
+  li.appendChild(document.createTextNode(" "));
+  li.appendChild(createEl("strong", null, primaryText));
+  if (suffixText) {
+    li.appendChild(document.createTextNode(suffixText));
+  }
+  if (metaText) {
+    li.appendChild(createEl("br"));
+    li.appendChild(createEl("span", { class: "conn-meta" }, metaText));
+  }
+  return li;
 }
 
 // ─── Render a single node group ───
@@ -680,6 +737,7 @@ function createNodeElement(node) {
     "data-id": node.id,
     transform: `translate(${node._x}, ${node._y})`
   });
+  appendSvgTitle(group, node.name);
 
   // Spawn/collapse CSS animations live on this inner group, never on `group` itself —
   // those animations drive the `transform` CSS property, which would otherwise take
@@ -709,7 +767,7 @@ function createNodeElement(node) {
     "font-weight": cfg.fontWeight,
     class: "node-label"
   });
-  label.textContent = node.name;
+  label.textContent = truncateSvgText(node.name, cfg.w, cfg.fontSize);
   visual.appendChild(label);
 
   if (node._hasChildren) {
@@ -767,13 +825,17 @@ function renderLegend() {
   }
   const items = [codebaseData, ...(codebaseData.children || [])];
   const seen = new Set();
-  let html = "";
+  legend.replaceChildren();
   items.forEach(n => {
     if (!n.color || seen.has(n.color)) return;
     seen.add(n.color);
-    html += `<div class="legend-item"><div class="legend-dot" style="background:${n.color}"></div> ${escapeHtml(n.name)}</div>`;
+    const item = createEl("div", { class: "legend-item" });
+    const dot = createEl("div", { class: "legend-dot" });
+    dot.style.background = n.color;
+    item.appendChild(dot);
+    item.appendChild(document.createTextNode(n.name || ""));
+    legend.appendChild(item);
   });
-  legend.innerHTML = html;
 }
 
 // ─── Full render (initial) ───
@@ -1102,7 +1164,8 @@ function showHoverPreview(node) {
     x: tooltipX + 12, y: tooltipY + 18,
     class: "hover-tooltip-text"
   });
-  descText.textContent = truncateText(node.desc, 100);
+  descText.textContent = truncateSvgText(node.desc, tooltipW - 24, 11);
+  appendSvgTitle(descText, node.desc);
   tooltipG.appendChild(descText);
 
   if (node._hasChildren) {
@@ -1277,61 +1340,64 @@ function smoothPanToNode(node) {
 
 function showDetail(node) {
   const panel = document.getElementById("detail-content");
-  let html = `<h2>${escapeHtml(node.name)}</h2>`;
+  panel.replaceChildren();
+  panel.appendChild(createEl("h2", null, node.name || ""));
 
   if (node.path) {
-    html += `<div class="detail-path">${escapeHtml(node.path)}</div>`;
+    panel.appendChild(createEl("div", { class: "detail-path" }, node.path));
   }
 
   if (node.badges && node.badges.length) {
-    html += `<div style="margin-bottom:14px">`;
+    const badgeWrap = createEl("div");
+    badgeWrap.style.marginBottom = "14px";
     node.badges.forEach(b => {
       const type = (b && b.type) || "core";
       const cls = ["lang", "metric", "core", "flag"].includes(type) ? `badge-${type}` : "badge-core";
       const label = (b && b.label) || String(b);
-      html += `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+      badgeWrap.appendChild(createEl("span", { class: `badge ${cls}` }, label));
     });
-    html += `</div>`;
+    panel.appendChild(badgeWrap);
   }
 
   if (node.desc) {
-    html += `<div class="detail-desc">${escapeHtml(node.desc)}</div>`;
+    panel.appendChild(createEl("div", { class: "detail-desc" }, node.desc));
   }
 
   if (node.code) {
-    html += `<div class="detail-section"><h3>Code / Structure</h3>`;
-    html += `<div class="code-block">${escapeHtml(node.code)}</div></div>`;
+    const section = appendDetailSection(panel, "Code / Structure");
+    section.appendChild(createEl("div", { class: "code-block" }, node.code));
   }
 
   if (node.connections && node.connections.length) {
-    html += `<div class="detail-section"><h3>Connections</h3><ul class="connections">`;
+    const section = appendDetailSection(panel, "Connections");
+    const list = createEl("ul", { class: "connections" });
     node.connections.forEach(conn => {
-      html += `<li onclick="navigateToNode('${conn.target}')"><span class="conn-arrow">→</span> <strong>${escapeHtml(getNodeName(conn.target))}</strong>: ${escapeHtml(conn.label)}</li>`;
+      list.appendChild(createConnectionItem(conn.target, "→", getNodeName(conn.target), `: ${conn.label || ""}`));
     });
-    html += `</ul></div>`;
+    section.appendChild(list);
   }
 
   if (node.children && node.children.length) {
-    html += `<div class="detail-section"><h3>Child Modules (${node.children.length})</h3><ul class="connections">`;
+    const section = appendDetailSection(panel, `Child Modules (${node.children.length})`);
+    const list = createEl("ul", { class: "connections" });
     node.children.forEach(child => {
-      html += `<li onclick="navigateToNode('${child.id}')"><span class="conn-arrow">▸</span> <strong>${escapeHtml(child.name)}</strong></li>`;
+      list.appendChild(createConnectionItem(child.id, "▸", child.name || child.id));
     });
-    html += `</ul></div>`;
+    section.appendChild(list);
   }
-
-  panel.innerHTML = html;
 }
 
 function updateBreadcrumb(node) {
   if (!FEATURES.breadcrumb) return;
   const bc = document.getElementById("breadcrumb");
   const dataPath = getDataPath(node.id);
-  let html = "";
+  bc.replaceChildren();
   dataPath.forEach((n, i) => {
-    if (i > 0) html += `<span class="sep">/</span>`;
-    html += `<span onclick="navigateToNode('${n.id}')">${escapeHtml(n.name)}</span>`;
+    if (i > 0) bc.appendChild(createEl("span", { class: "sep" }, "/"));
+    const crumb = createEl("span", null, n.name || n.id);
+    crumb.addEventListener("click", () => navigateToNode(n.id));
+    bc.appendChild(crumb);
   });
-  bc.innerHTML = html;
 }
 
 function getDataPath(nodeId) {
@@ -1562,16 +1628,20 @@ if (FEATURES.search) {
     search(codebaseData);
 
     const panel = document.getElementById("detail-content");
-    let html = `<h2>Search: "${escapeHtml(e.target.value)}"</h2>`;
-    html += `<div class="detail-desc">${results.length} result${results.length !== 1 ? "s" : ""} found</div>`;
+    panel.replaceChildren();
+    panel.appendChild(createEl("h2", null, `Search: "${e.target.value}"`));
+    panel.appendChild(createEl(
+      "div",
+      { class: "detail-desc" },
+      `${results.length} result${results.length !== 1 ? "s" : ""} found`
+    ));
     if (results.length > 0) {
-      html += `<ul class="connections">`;
+      const list = createEl("ul", { class: "connections" });
       results.forEach(r => {
-        html += `<li onclick="navigateToNode('${r.id}')"><span class="conn-arrow">▸</span> <strong>${escapeHtml(r.name)}</strong><br><span class="conn-meta">${escapeHtml(r.path || "")}</span></li>`;
+        list.appendChild(createConnectionItem(r.id, "▸", r.name || r.id, "", r.path || ""));
       });
-      html += `</ul>`;
+      panel.appendChild(list);
     }
-    panel.innerHTML = html;
   });
 } else {
   document.getElementById("search-box").style.display = "none";

@@ -264,12 +264,37 @@ def get_vcs_info(root: Path) -> dict:
     return {"remote": run("remote", "get-url", "origin"), "default_branch": run("branch", "--show-current")}
 
 
-def find_manifests(root: Path, gitignore_patterns: list[str]) -> list[dict]:
+def resolve_scope(root: Path, scope_arg: str | None) -> Path | None:
+    if not scope_arg:
+        return None
+    scope = Path(scope_arg)
+    if scope.is_absolute():
+        raise SystemExit("error: --scope must be a relative path inside the target directory")
+    candidate = (root / scope).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise SystemExit("error: --scope must stay inside the target directory")
+    if not candidate.is_dir():
+        raise SystemExit(f"error: --scope {scope_arg!r} is not an existing directory")
+    return candidate.relative_to(root)
+
+
+def _has_ignored_parent(rel: Path, gitignore_patterns: list[str]) -> bool:
+    for i, part in enumerate(rel.parts[:-1], start=1):
+        if is_ignored(Path(*rel.parts[:i]), part, gitignore_patterns):
+            return True
+    return False
+
+
+def find_manifests(search_root: Path, repo_root: Path, gitignore_patterns: list[str]) -> list[dict]:
     manifests = []
     for manifest_name, handler in MANIFEST_HANDLERS.items():
-        for match in root.rglob(manifest_name):
-            rel = match.relative_to(root)
-            if any(is_ignored(Path(p), p, gitignore_patterns) for p in rel.parts[:-1]):
+        for match in search_root.rglob(manifest_name):
+            if match.is_symlink():
+                continue
+            rel = match.relative_to(repo_root)
+            if _has_ignored_parent(rel, gitignore_patterns):
                 continue
             parsed = handler(match)
             manifests.append({"type": manifest_name, "path": str(rel), **parsed})
@@ -305,6 +330,8 @@ def scan_tree(root: Path, gitignore_patterns: list[str], max_levels: int, scope:
         for entry in entries:
             rel = entry.relative_to(root)
             if is_ignored(rel, entry.name, gitignore_patterns):
+                continue
+            if entry.is_symlink():
                 continue
 
             if entry.is_dir():
@@ -361,11 +388,11 @@ def main():
 
     global depth_name, entry_point_paths
     depth_name = args.depth
-    scope = Path(args.scope) if args.scope else None
+    scope = resolve_scope(root, args.scope)
 
     scan_root = (root / scope) if scope else root
     gitignore_patterns = load_gitignore_patterns(root)
-    manifests = find_manifests(scan_root, gitignore_patterns)
+    manifests = find_manifests(scan_root, root, gitignore_patterns)
     entry_point_paths = set()
     for m in manifests:
         manifest_dir = Path(m["path"]).parent

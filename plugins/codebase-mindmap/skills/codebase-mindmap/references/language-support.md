@@ -24,9 +24,10 @@ directly over what `structures` reported.
 
 ## Generic tier (every other language)
 
-File tree placement, LOC counts, and — if a recognizable manifest exists
-(e.g. `Cargo.toml`, `pom.xml`, `Gemfile`, `composer.json`) — name/description/
-entry-point detection from that manifest. No class/function-level extraction.
+File tree placement, LOC counts, and — if a supported manifest exists
+(`pyproject.toml`, `package.json`, `go.mod`, or `Cargo.toml`) — name/
+description/entry-point detection from that manifest. No class/function-level
+extraction.
 
 For these files, when you (the agent) decide a node deserves function-level
 detail, get it by reading the file directly rather than expecting `scan.json`

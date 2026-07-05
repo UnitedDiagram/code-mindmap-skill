@@ -36,6 +36,18 @@ DEFAULT_FEATURES = {
 VALID_BADGE_TYPES = {"lang", "metric", "core", "flag"}
 
 
+def dumps_for_script(value) -> str:
+    """Serialize JSON for direct use in a script tag without allowing HTML breakout."""
+    return (
+        json.dumps(value)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def load_themes() -> dict:
     return json.loads(THEMES_PATH.read_text())
 
@@ -127,9 +139,9 @@ def render(
         "__WELCOME_INTRO__": html.escape(welcome_intro),
         "__WELCOME_BLURB__": html.escape(welcome_blurb),
         "__THEME_VARS__": theme_vars_block,
-        "__FEATURES__": json.dumps(resolved_features),
-        "__CODEBASE_DATA__": json.dumps(data["codebaseData"]),
-        "__CROSS_CONNECTIONS__": json.dumps(data.get("crossConnections", [])),
+        "__FEATURES__": dumps_for_script(resolved_features),
+        "__CODEBASE_DATA__": dumps_for_script(data["codebaseData"]),
+        "__CROSS_CONNECTIONS__": dumps_for_script(data.get("crossConnections", [])),
     }
 
     missing = [token for token in replacements if token not in template]
