@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "code-mindmap-skill",
+  "description": "Codebase mind map skill marketplace.",
+  "owner": {
+    "name": "UnitedDiagram"
+  },
+  "plugins": [
+    {
+      "name": "codebase-mindmap",
+      "description": "Generate interactive codebase architecture mind maps.",
+      "version": "1.0.0",
+      "author": {
+        "name": "UnitedDiagram"
+      },
+      "source": "./plugins/codebase-mindmap",
+      "category": "development",
+      "homepage": "https://github.com/UnitedDiagram/code-mindmap-skill"
+    }
+  ]
+}

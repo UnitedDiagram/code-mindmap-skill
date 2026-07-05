@@ -1,0 +1,34 @@
+{
+  "name": "codebase-mindmap",
+  "version": "1.0.0",
+  "description": "Generate interactive codebase architecture mind maps.",
+  "author": {
+    "name": "UnitedDiagram",
+    "url": "https://github.com/UnitedDiagram"
+  },
+  "homepage": "https://github.com/UnitedDiagram/code-mindmap-skill",
+  "repository": "https://github.com/UnitedDiagram/code-mindmap-skill",
+  "license": "MIT",
+  "keywords": [
+    "codebase",
+    "mindmap",
+    "architecture",
+    "agent-skill"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codebase Mind Map",
+    "shortDescription": "Generate interactive codebase architecture mind maps",
+    "longDescription": "Generate a self-contained interactive HTML mind map of a codebase architecture using deterministic scanning and agent-written narrative.",
+    "developerName": "UnitedDiagram",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/UnitedDiagram/code-mindmap-skill",
+    "defaultPrompt": [
+      "Map this codebase"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "code-mindmap-skill",
+  "interface": {
+    "displayName": "Code Mindmap Skill"
+  },
+  "plugins": [
+    {
+      "name": "codebase-mindmap",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codebase-mindmap"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

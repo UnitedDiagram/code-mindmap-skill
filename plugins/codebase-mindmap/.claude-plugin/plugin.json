@@ -1,0 +1,8 @@
+{
+  "name": "codebase-mindmap",
+  "version": "1.0.0",
+  "description": "Generate interactive codebase architecture mind maps.",
+  "author": {
+    "name": "UnitedDiagram"
+  }
+}
