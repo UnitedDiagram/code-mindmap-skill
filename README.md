@@ -67,7 +67,7 @@ of truth for how this skill behaves in every tool.
 
 ## Requirements
 
-- Python 3.9+ (stdlib only, no `pip install` needed) for scanning and
+- Python 3.9X+ (stdlib only, no `pip install` needed) for scanning and
   rendering.
 - Optional: Node.js + the `playwright` package + a Chromium install, only if
   you want automated verification of the generated output
