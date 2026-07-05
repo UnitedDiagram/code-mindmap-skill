@@ -20,7 +20,13 @@ cache of resolved customization — never required for the skill to function.
     "panZoom": true
   },
   "scope": null,
-  "verification": "manual"
+  "verification": "manual",
+  "onboarding": {
+    "resolved_prompt_mode": "full-wizard",
+    "purpose": "new-contributor-onboarding",
+    "audience": "new contributor",
+    "emphasis": ["top-level architecture", "flows/data paths"]
+  }
 }
 ```
 
@@ -33,12 +39,17 @@ cache of resolved customization — never required for the skill to function.
 | `features` | The resolved feature-flag object also injected as `__FEATURES__`. |
 | `scope` | `null` for the whole repo, or a relative path if the user scoped generation to a subdirectory ("just the agent/ folder"). |
 | `verification` | Which of `references/verification-strategies.md`'s options (`playwright` \| `manual` \| `skip`) was used last time — informational, doesn't auto-run anything. |
+| `onboarding` | Optional object recording the planning-mode brief that led to this map. Existing config files without this field remain valid. |
+| `onboarding.resolved_prompt_mode` | Usually `full-wizard`; records whether choices came from the wizard, user-provided intent, or a host-specific equivalent. |
+| `onboarding.purpose` | Why the map exists, such as `new-contributor-onboarding`, `architecture-review`, `pr-or-share-artifact`, or the user's custom wording. |
+| `onboarding.audience` | Who the map is for, such as a new contributor, reviewer, maintainer, or team. |
+| `onboarding.emphasis` | Array of focus areas to carry into the narrative, such as top-level architecture, flows/data paths, or risks. |
 
 ## Behavior
 
 - On a rerun, if this file exists and the user's request doesn't mention
-  changing anything, reuse it silently rather than re-deriving defaults or
-  re-asking.
+  changing anything, reuse customization and onboarding intent silently rather
+  than re-deriving defaults or re-asking.
 - If the user asks for a change ("make it lighter this time"), update only the
   fields that changed and rewrite the file with a fresh `generated_at`.
 - Never treat this file's presence as a signal to skip the actual

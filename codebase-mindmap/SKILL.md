@@ -55,22 +55,37 @@ In command examples, `<skill-root>` means the directory containing this
 directory so the workflow works whether the skill is checked out directly or
 installed through a plugin.
 
+The onboarding rationale and audit are documented in
+`<skill-root>/references/onboarding-audit.md`.
+
 1. **Resolve the target and check for a prior run.** If `.mindmap-config.json`
    exists at the target repo's root (see `<skill-root>/references/config-schema.md`)
-   and the user isn't asking for a change, reuse its settings silently.
+   and the user isn't asking for a change, reuse its customization and
+   onboarding intent silently.
 
-2. **Run the first-run customization check.** The user can express theme/depth/
-   feature preferences in natural language ("make it light-themed and shallow",
-   "no search box"), not a fixed menu. Resolve their request against
-   `<skill-root>/references/customization-options.md`, fill in sensible
-   defaults for anything unspecified, and briefly confirm what you resolved it
-   to. If there is no prior `.mindmap-config.json` and the user did not already
-   specify customization, ask one compact question before scanning:
-   `Choose map style: theme (dark/light/high contrast), depth (shallow/standard/deep), and features (all on or simplified). Recommended: dark, standard, all features.`
-   In Codex environments with structured choice tools, use them; otherwise ask
-   as plain text.
+2. **Ground the onboarding in repo facts before asking.** Before any first-run
+   questions, inspect the target repo just enough to avoid asking discoverable
+   questions: README, manifests, obvious entry points, top-level directories,
+   and any existing architecture docs. Do not run the full scan yet.
 
-3. **Scan.**
+3. **Run the planning-mode onboarding wizard.** If there is no prior
+   `.mindmap-config.json`, or the user asks to change the audience, purpose,
+   scope, emphasis, output preferences, or verification, follow
+   `<skill-root>/references/customization-options.md`. Ask for the goal and
+   audience, scope and emphasis, then output preferences. Use the user's
+   natural-language request to skip any question they already answered. Agents
+   must not run `scan.py` until all required choices are answered or explicitly
+   defaulted in a resolved brief.
+
+4. **Summarize the resolved brief.** Before scanning, state the resolved brief
+   in this shape, filling in the placeholders:
+   ```text
+   I'll map {scope} for {audience} to answer {goal} with {depth}, {theme}, {features}, and {verification}.
+   ```
+   If the summary conflicts with the user's intent, stop and correct it before
+   scanning.
+
+5. **Scan.**
    ```bash
    python3 <skill-root>/scripts/scan.py <target-path> --depth <shallow|standard|deep> --out scan.json
    ```
@@ -79,7 +94,7 @@ installed through a plugin.
    `<skill-root>/references/language-support.md`) classes/functions/imports
    per file. It contains zero narrative content.
 
-4. **Write the narrative.** Read `scan.json`, then selectively read the actual
+6. **Write the narrative.** Read `scan.json`, then selectively read the actual
    files it points to (READMEs, entry points, architecturally-significant
    modules) and produce the full `codebaseData` tree — the same shape
    `scan.json` scaffolded, now with `desc`, `code`, `badges`, and
@@ -88,7 +103,7 @@ installed through a plugin.
    in `<skill-root>/references/data-schema.md` — read it before writing your
    first node.
 
-5. **Render.**
+7. **Render.**
    ```bash
    python3 <skill-root>/scripts/render.py --data codebaseData.json --theme <theme> --features '<json>' --out <output>.html
    ```
@@ -97,15 +112,28 @@ installed through a plugin.
    writing the file — read its output.
 
    After a successful render, write `.mindmap-config.json` at the target repo's
-   root with the resolved output path, theme, depth, feature flags, scope, and
-   verification choice (if known) so future reruns can reuse those choices.
+   root with the resolved output path, theme, depth, feature flags, scope,
+   verification choice (if known), and onboarding intent fields so future
+   reruns can reuse those choices.
 
-6. **Verify** (optional, user's choice — never assume Playwright is
+8. **Verify** (optional, user's choice — never assume Playwright is
    available). See `<skill-root>/references/verification-strategies.md` for the
    three options (automated Playwright check, agent-driven manual spot-check,
    or skip) and how to pick between them.
 
-7. **Preview and hand off.**
+9. **Preview and hand off.**
+
+### Multi-agent onboarding guidance
+
+- **Codex:** Use structured choice prompts when available. Ask no more than
+  three short questions in a single round, then continue only after the
+  resolved brief is complete.
+- **Claude Code:** The parent conversation collects onboarding answers and
+  passes the resolved brief to any delegated mindmapper subagent. The subagent
+  should not re-ask unless the brief is incomplete or conflicts with
+  `SKILL.md`.
+- **Cursor and other agents:** Use the same wizard questions as plain numbered
+  choices, preserve the resolved brief, and do not scan until it is complete.
 
 ### Delegating to a subagent (Claude Code only)
 

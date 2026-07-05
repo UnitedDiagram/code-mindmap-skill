@@ -9,15 +9,59 @@ If the target directory already has a `.mindmap-config.json` (see
 `config-schema.md`) and the user doesn't mention changing anything, reuse it
 silently — that's the whole point of persisting it.
 
-If there is no `.mindmap-config.json` and the user did not mention any
-customization, ask once before scanning:
+First-run onboarding is a planning-mode wizard, not just a style picker. If
+there is no `.mindmap-config.json`, or the user asks to change the intent or
+customization, inspect the target repo enough to avoid asking discoverable
+questions, then ask for missing intent before scanning.
+
+Use structured choice tools when the host environment offers them. Otherwise
+ask the same questions in plain text. In Codex, ask no more than three short
+questions per round.
+
+## Planning-mode onboarding wizard
+
+Ask these in order, skipping anything the user already answered:
 
 ```text
-Choose map style: theme (dark/light/high contrast), depth (shallow/standard/deep), and features (all on or simplified). Recommended: dark, standard, all features.
+I need to lock the map brief before scanning.
+
+1. Goal and audience: is this for new contributor onboarding, architecture
+   review, a PR/share artifact, or something custom?
+2. Scope and emphasis: should I map the whole repo or a subsystem, and should
+   the map emphasize top-level architecture, flows/data paths, risks, or
+   something custom?
+3. Output preferences: choose theme, depth, features, output path, and
+   verification mode. Defaults: dark-github, standard depth, all features,
+   ./<repo-name>-mindmap.html, manual verification.
 ```
 
-Use structured choice tools when the host environment offers them; otherwise ask
-the same question in plain text.
+After answers are known or explicitly defaulted, summarize before scanning:
+
+```text
+I'll map {scope} for {audience} to answer {goal} with {depth}, {theme},
+{features}, and {verification}.
+```
+
+Do not run `scan.py` until this brief is complete.
+
+### Goal and audience
+
+| User says something like... | Resolve to |
+|---|---|
+| "help me onboard", "new engineer", "understand this repo" | `purpose: new-contributor-onboarding`, `audience: new contributor` |
+| "architecture review", "how is this designed" | `purpose: architecture-review`, `audience: reviewer/maintainer` |
+| "attach to a PR", "share this with the team" | `purpose: pr-or-share-artifact`, `audience: reviewers/team` |
+| "for X" / custom wording | Preserve the user's wording in the resolved brief |
+
+### Scope and emphasis
+
+| User says something like... | Resolve to |
+|---|---|
+| (nothing specified) | `scope: null`, whole repo |
+| "just auth", "only the agent folder" | Scope to that subdirectory/module if it exists; otherwise ask for the path |
+| "high-level overview" | Emphasize top-level architecture and use `depth: shallow` unless another depth is specified |
+| "data flow", "request lifecycle", "how messages move" | Emphasize flows/data paths in node descriptions and cross-connections |
+| "risks", "hot spots", "what should I be careful with" | Emphasize risks and caveats where supported by repo evidence |
 
 ## Theme
 
