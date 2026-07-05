@@ -27,6 +27,42 @@ Symlinks the skill into whichever of Claude Code / Cursor / Codex CLI are set
 up on your machine. See `--help` for scoping to a single project instead of
 your user config.
 
+## Install through plugins
+
+This repository is not currently packaged as an installable plugin. It does not
+yet include `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, or a
+marketplace file, so `<marketplace-source>` and `<marketplace-name>` are
+placeholders until plugin packaging exists. Today, use the install script above
+for direct skill installation.
+
+### Claude Code
+
+After this project is published through a Claude Code plugin marketplace:
+
+```text
+/plugin marketplace add <marketplace-source>
+/plugin install codebase-mindmap@<marketplace-name>
+/reload-plugins
+```
+
+Plugin skills in Claude Code are invoked with the plugin namespace:
+
+```text
+/<plugin-name>:<skill-name>
+```
+
+### Codex
+
+After this project is published through a Codex plugin marketplace:
+
+```bash
+codex plugin marketplace add <marketplace-source>
+codex plugin add codebase-mindmap@<marketplace-name>
+```
+
+Codex app users can also install from **Plugins**. After installing, start a new
+thread and invoke the plugin with `@`.
+
 ## Usage
 
 Ask your agent to "map this codebase" or "generate an interactive
