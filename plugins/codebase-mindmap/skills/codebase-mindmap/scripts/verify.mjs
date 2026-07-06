@@ -48,6 +48,99 @@ function countNodes(node) {
   return n;
 }
 
+async function checkNodeLabelBounds(page, phase) {
+  const issues = await page.evaluate(() => {
+    const tolerance = 2;
+    return [...document.querySelectorAll("#nodes-group > g.node-group")].flatMap((group) => {
+      const id = group.getAttribute("data-id") || "(unknown)";
+      const rect = group.querySelector(".node-rect");
+      const label = group.querySelector(".node-label");
+      if (!rect || !label) return [{ id, reason: "missing node rect or label" }];
+
+      const rectBox = rect.getBBox();
+      const labelBox = label.getBBox();
+      const wrapWidth = Number(label.getAttribute("data-wrap-width") || 0);
+      const tspans = [...label.querySelectorAll("tspan")];
+      const empty = tspans.length === 0 || tspans.every(t => !t.textContent.trim());
+      const lineOverflow = tspans
+        .map((tspan, index) => ({ index, text: tspan.textContent, width: tspan.getComputedTextLength() }))
+        .filter(line => wrapWidth > 0 && line.width > wrapWidth + tolerance);
+
+      const outsideRect =
+        labelBox.x < rectBox.x - tolerance ||
+        labelBox.y < rectBox.y - tolerance ||
+        labelBox.x + labelBox.width > rectBox.x + rectBox.width + tolerance ||
+        labelBox.y + labelBox.height > rectBox.y + rectBox.height + tolerance;
+
+      const nodeIssues = [];
+      if (empty) nodeIssues.push({ id, reason: "label has no visible tspan text" });
+      if (outsideRect) {
+        nodeIssues.push({
+          id,
+          reason: `label bbox outside bubble: label=${JSON.stringify(labelBox)} rect=${JSON.stringify(rectBox)}`
+        });
+      }
+      lineOverflow.forEach(line => {
+        nodeIssues.push({
+          id,
+          reason: `line ${line.index + 1} exceeds wrap width: ${Math.round(line.width)} > ${Math.round(wrapWidth)} (${line.text})`
+        });
+      });
+      return nodeIssues;
+    });
+  });
+
+  assert(issues.length === 0, `node label text stays inside bubbles (${phase})`,
+    issues.slice(0, 3).map(issue => `${issue.id}: ${issue.reason}`).join(" | "));
+}
+
+async function checkHoverTooltipBounds(page, selector, phase) {
+  await page.locator(selector).hover({ force: true });
+  await page.waitForTimeout(500);
+
+  const result = await page.evaluate(() => {
+    const tolerance = 2;
+    const bg = document.querySelector(".hover-tooltip-bg");
+    const text = document.querySelector(".hover-tooltip-text");
+    if (!bg || !text) return { hasTooltip: false, issues: ["hover tooltip did not render"] };
+
+    const bgBox = bg.getBBox();
+    const textBox = text.getBBox();
+    const wrapWidth = Number(text.getAttribute("data-wrap-width") || 0);
+    const tspans = [...text.querySelectorAll("tspan")];
+    const issues = [];
+
+    if (tspans.length === 0 || tspans.every(t => !t.textContent.trim())) {
+      issues.push("hover tooltip has no visible wrapped text");
+    }
+
+    tspans.forEach((tspan, index) => {
+      const width = tspan.getComputedTextLength();
+      if (wrapWidth > 0 && width > wrapWidth + tolerance) {
+        issues.push(`tooltip line ${index + 1} exceeds wrap width: ${Math.round(width)} > ${Math.round(wrapWidth)}`);
+      }
+    });
+
+    if (
+      textBox.x < bgBox.x - tolerance ||
+      textBox.y < bgBox.y - tolerance ||
+      textBox.x + textBox.width > bgBox.x + bgBox.width + tolerance ||
+      textBox.y + textBox.height > bgBox.y + bgBox.height + tolerance
+    ) {
+      issues.push(`tooltip text bbox outside bg: text=${JSON.stringify(textBox)} bg=${JSON.stringify(bgBox)}`);
+    }
+
+    return { hasTooltip: true, issues };
+  });
+
+  assert(result.hasTooltip, `hover tooltip renders (${phase})`, result.issues.join(" | "));
+  assert(result.issues.length === 0, `hover tooltip text stays inside tooltip box (${phase})`,
+    result.issues.slice(0, 3).join(" | "));
+
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(150);
+}
+
 const url = pathToFileURL(path.resolve(target)).href;
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -86,6 +179,13 @@ const rootHasBreathing = await page.evaluate(() => {
   return !!(el && (el.classList.contains("node-breathing") || el.querySelector(".node-visual")?.classList.contains("node-breathing")));
 });
 assert(rootHasBreathing, "root has idle breathing animation before first interaction");
+await checkNodeLabelBounds(page, "initial render");
+
+if (features?.hoverPreview) {
+  await checkHoverTooltipBounds(page, '[data-id="root"]', "root hover");
+} else {
+  warn("hover preview feature disabled — skipping tooltip bounds checks");
+}
 
 if (features?.legend) {
   const legendVisible = await page.evaluate(() => document.getElementById("legend")?.classList.contains("visible"));
@@ -115,6 +215,7 @@ if (await page.locator("#expand-all").count()) {
   const uniquePositions = new Set(positions);
   assert(uniquePositions.size === positions.length, "no two nodes overlap at the exact same position",
     `${positions.length} nodes, only ${uniquePositions.size} distinct positions`);
+  await checkNodeLabelBounds(page, "Expand All");
 
   // No NaN/undefined leaking into SVG path geometry.
   const badPaths = await page.evaluate(() => {
@@ -159,6 +260,7 @@ if (rootChildCount > 0) {
     });
   });
   assert(new Set(positions).size === positions.length, "single-expand children occupy distinct positions (regression check)");
+  await checkNodeLabelBounds(page, "single-node expand");
 } else {
   warn("root has no children — skipping click-to-expand check");
 }

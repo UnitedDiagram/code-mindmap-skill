@@ -360,6 +360,10 @@ body {
   dominant-baseline: central;
 }
 
+.node-label tspan {
+  pointer-events: none;
+}
+
 .node-child-count {
   font-size: 10px;
   fill: var(--child-count-fill);
@@ -404,6 +408,7 @@ body {
   fill: var(--text-primary);
   font-size: 12px;
   font-family: 'Segoe UI', system-ui, sans-serif;
+  dominant-baseline: central;
 }
 
 .hover-tooltip-action {
@@ -576,11 +581,11 @@ svg.setAttribute("height", height);
 
 // Depth-based sizing
 const DEPTH_CONFIG = [
-  { w: 220, h: 56, r: 12, fontSize: 16, fontWeight: 700, opacity: 1.0, strokeWidth: 3 },
-  { w: 180, h: 44, r: 10, fontSize: 14, fontWeight: 600, opacity: 0.92, strokeWidth: 2 },
-  { w: 160, h: 38, r: 8,  fontSize: 13, fontWeight: 500, opacity: 0.82, strokeWidth: 1.5 },
-  { w: 140, h: 32, r: 6,  fontSize: 12, fontWeight: 400, opacity: 0.70, strokeWidth: 1 },
-  { w: 120, h: 28, r: 6,  fontSize: 11, fontWeight: 400, opacity: 0.55, strokeWidth: 1 }
+  { w: 220, h: 66, r: 12, fontSize: 16, fontWeight: 700, opacity: 1.0, strokeWidth: 3, maxLabelLines: 2 },
+  { w: 180, h: 58, r: 10, fontSize: 14, fontWeight: 600, opacity: 0.92, strokeWidth: 2, maxLabelLines: 2 },
+  { w: 160, h: 54, r: 8,  fontSize: 13, fontWeight: 500, opacity: 0.82, strokeWidth: 1.5, maxLabelLines: 2 },
+  { w: 140, h: 48, r: 6,  fontSize: 12, fontWeight: 400, opacity: 0.70, strokeWidth: 1, maxLabelLines: 2 },
+  { w: 120, h: 44, r: 6,  fontSize: 11, fontWeight: 400, opacity: 0.55, strokeWidth: 1, maxLabelLines: 2 }
 ];
 
 function getDepthConfig(depth) {
@@ -632,7 +637,7 @@ function rebuildGraph() {
 // ─── Layout ───
 
 const H_SPACING = 300;
-const V_SPACING = 64;
+const V_SPACING = 80;
 
 function computeLayout() {
   const nodesByParent = {};
@@ -681,10 +686,138 @@ function truncateText(str, maxLen) {
   return str.substring(0, maxLen - 3) + "...";
 }
 
-function truncateSvgText(str, boxWidth, fontSize) {
-  const text = str || "";
-  const maxChars = Math.max(6, Math.floor((boxWidth - 24) / (fontSize * 0.58)));
-  return truncateText(text, maxChars);
+const svgTextWidthCache = new Map();
+
+function estimateSvgTextWidth(text, fontSize) {
+  return Array.from(text || "").reduce((sum, char) => {
+    if (/\s/.test(char)) return sum + fontSize * 0.34;
+    if (/[A-Z0-9]/.test(char)) return sum + fontSize * 0.62;
+    if (/[il.,'|]/.test(char)) return sum + fontSize * 0.30;
+    return sum + fontSize * 0.54;
+  }, 0);
+}
+
+function measureSvgText(text, fontSize, fontWeight) {
+  const value = text || "";
+  const key = `${fontSize}|${fontWeight || 400}|${value}`;
+  if (svgTextWidthCache.has(key)) return svgTextWidthCache.get(key);
+
+  let width = estimateSvgTextWidth(value, fontSize);
+  let probe = null;
+  try {
+    probe = createSVG("text", {
+      x: -9999,
+      y: -9999,
+      "font-size": fontSize,
+      "font-weight": fontWeight || 400,
+      "font-family": "'Segoe UI', system-ui, sans-serif",
+      visibility: "hidden"
+    });
+    probe.textContent = value;
+    svg.appendChild(probe);
+    width = probe.getComputedTextLength() || width;
+  } catch {
+    // Browser measurement can fail before SVG layout is fully available; the
+    // estimator above is conservative enough to keep text inside the box.
+  } finally {
+    if (probe && probe.parentNode) probe.parentNode.removeChild(probe);
+  }
+
+  svgTextWidthCache.set(key, width);
+  return width;
+}
+
+function fitSvgTextToWidth(text, maxWidth, fontSize, fontWeight) {
+  const ellipsis = "...";
+  const clean = String(text || "").trim();
+  if (!clean) return "";
+  if (measureSvgText(clean, fontSize, fontWeight) <= maxWidth) return clean;
+  if (measureSvgText(ellipsis, fontSize, fontWeight) > maxWidth) return "";
+
+  let fitted = clean;
+  while (fitted.length > 0 && measureSvgText(`${fitted}${ellipsis}`, fontSize, fontWeight) > maxWidth) {
+    fitted = fitted.slice(0, -1).trimEnd();
+  }
+  return fitted ? `${fitted}${ellipsis}` : "";
+}
+
+function breakLongSvgToken(token, maxWidth, fontSize, fontWeight) {
+  const chunks = [];
+  let chunk = "";
+  for (const char of Array.from(token)) {
+    const candidate = `${chunk}${char}`;
+    if (chunk && measureSvgText(candidate, fontSize, fontWeight) > maxWidth) {
+      chunks.push(chunk);
+      chunk = char;
+    } else {
+      chunk = candidate;
+    }
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks;
+}
+
+function wrapSvgText(text, maxWidth, fontSize, fontWeight, maxLines) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  const limit = Math.max(1, maxLines || 1);
+  if (!clean) return [""];
+
+  const lines = [];
+  let current = "";
+
+  clean.split(" ").forEach(token => {
+    const parts = measureSvgText(token, fontSize, fontWeight) > maxWidth
+      ? breakLongSvgToken(token, maxWidth, fontSize, fontWeight)
+      : [token];
+
+    parts.forEach(part => {
+      const candidate = current ? `${current} ${part}` : part;
+      if (!current || measureSvgText(candidate, fontSize, fontWeight) <= maxWidth) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        current = part;
+      }
+    });
+  });
+
+  if (current) lines.push(current);
+
+  if (lines.length <= limit) return lines;
+
+  const visible = lines.slice(0, limit);
+  const overflow = [visible[limit - 1], ...lines.slice(limit)].join(" ");
+  visible[limit - 1] = fitSvgTextToWidth(overflow, maxWidth, fontSize, fontWeight);
+  return visible;
+}
+
+function appendWrappedSvgText(parent, text, opts) {
+  const fontSize = opts.fontSize;
+  const fontWeight = opts.fontWeight || 400;
+  const lineHeight = opts.lineHeight || Math.ceil(fontSize * 1.18);
+  const lines = opts.lines || wrapSvgText(text, opts.maxWidth, fontSize, fontWeight, opts.maxLines);
+  const startY = opts.centerY - ((lines.length - 1) * lineHeight) / 2;
+  const el = createSVG("text", {
+    x: opts.x || 0,
+    y: opts.centerY,
+    "font-size": fontSize,
+    "font-weight": fontWeight,
+    "data-wrap-width": opts.maxWidth,
+    "data-wrap-lines": lines.length,
+    class: opts.className
+  });
+
+  lines.forEach((line, i) => {
+    const tspan = createSVG("tspan", {
+      x: opts.x || 0,
+      y: startY + i * lineHeight
+    });
+    tspan.textContent = line;
+    el.appendChild(tspan);
+  });
+
+  parent.appendChild(el);
+  return { element: el, lines };
 }
 
 function appendSvgTitle(el, text) {
@@ -760,21 +893,27 @@ function createNodeElement(node) {
   });
   visual.appendChild(rect);
 
-  const label = createSVG("text", {
+  const countY = cfg.h / 2 - 12;
+  const labelCenterY = node._hasChildren
+    ? ((-cfg.h / 2 + 12) + (countY - 12)) / 2
+    : 0;
+  const label = appendWrappedSvgText(visual, node.name, {
     x: 0,
-    y: node._hasChildren ? -3 : 0,
-    "font-size": cfg.fontSize,
-    "font-weight": cfg.fontWeight,
-    class: "node-label"
-  });
-  label.textContent = truncateSvgText(node.name, cfg.w, cfg.fontSize);
-  visual.appendChild(label);
+    centerY: labelCenterY,
+    maxWidth: cfg.w - 24,
+    maxLines: cfg.maxLabelLines,
+    fontSize: cfg.fontSize,
+    fontWeight: cfg.fontWeight,
+    lineHeight: Math.ceil(cfg.fontSize * 1.15),
+    className: "node-label"
+  }).element;
+  appendSvgTitle(label, node.name);
 
   if (node._hasChildren) {
     const childCount = node.children.length;
     const countLabel = createSVG("text", {
       x: 0,
-      y: cfg.h / 2 - 10,
+      y: countY,
       class: "node-child-count"
     });
     countLabel.textContent = node._expanded ? `${childCount} modules` : `${childCount} inside`;
@@ -1147,10 +1286,18 @@ function showHoverPreview(node) {
   });
   overlay.appendChild(connector);
 
-  const tooltipW = 240;
-  const tooltipH = node._hasChildren ? 74 : 58;
+  const tooltipW = 260;
   const tooltipX = node._x - tooltipW / 2;
   const tooltipY = endY + 4;
+  const descValue = node.desc || node.name || "";
+  const descFontSize = 12;
+  const descLineHeight = 15;
+  const descLines = wrapSvgText(descValue, tooltipW - 24, descFontSize, 400, 3);
+  const descFirstY = tooltipY + 18;
+  const descLastY = descFirstY + (descLines.length - 1) * descLineHeight;
+  const countY = descLastY + 21;
+  const actionY = node._hasChildren ? countY + 18 : descLastY + 23;
+  const tooltipH = actionY - tooltipY + 18;
 
   const tooltipG = createSVG("g", { opacity: "0" });
 
@@ -1160,31 +1307,36 @@ function showHoverPreview(node) {
     class: "hover-tooltip-bg"
   }));
 
-  const descText = createSVG("text", {
-    x: tooltipX + 12, y: tooltipY + 18,
-    class: "hover-tooltip-text"
-  });
-  descText.textContent = truncateSvgText(node.desc, tooltipW - 24, 11);
-  appendSvgTitle(descText, node.desc);
-  tooltipG.appendChild(descText);
+  const descText = appendWrappedSvgText(tooltipG, descValue, {
+    x: tooltipX + 12,
+    centerY: descFirstY + ((descLines.length - 1) * descLineHeight) / 2,
+    maxWidth: tooltipW - 24,
+    maxLines: 3,
+    fontSize: descFontSize,
+    fontWeight: 400,
+    lineHeight: descLineHeight,
+    lines: descLines,
+    className: "hover-tooltip-text"
+  }).element;
+  appendSvgTitle(descText, descValue);
 
   if (node._hasChildren) {
     const countText = createSVG("text", {
-      x: tooltipX + 12, y: tooltipY + 38,
+      x: tooltipX + 12, y: countY,
       class: "hover-tooltip-count"
     });
     countText.textContent = `${node.children.length} modules inside`;
     tooltipG.appendChild(countText);
 
     const actionText = createSVG("text", {
-      x: tooltipX + 12, y: tooltipY + 56,
+      x: tooltipX + 12, y: actionY,
       class: "hover-tooltip-action"
     });
     actionText.textContent = node._expanded ? "Click to collapse" : "Click to explore";
     tooltipG.appendChild(actionText);
   } else {
     const actionText = createSVG("text", {
-      x: tooltipX + 12, y: tooltipY + 40,
+      x: tooltipX + 12, y: actionY,
       class: "hover-tooltip-action"
     });
     actionText.textContent = "Click to view details";
