@@ -1245,6 +1245,7 @@ function hideHoverPreview() {
 
 function handleNodeClick(node) {
   hideHoverPreview();
+  clearSearchInput();
   selectedNodeId = node.id;
   showDetail(node);
   updateBreadcrumb(node);
@@ -1437,6 +1438,7 @@ function getDataPath(nodeId) {
 }
 
 function navigateToNode(nodeId) {
+  clearSearchInput();
   const path = getDataPath(nodeId);
 
   path.forEach((n, i) => {
@@ -1467,6 +1469,12 @@ function navigateToNode(nodeId) {
     legendShown = true;
     document.getElementById("legend").classList.add("visible");
   }
+}
+
+function clearSearchInput() {
+  if (!FEATURES.search) return;
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) searchInput.value = "";
 }
 
 function getNodeName(nodeId) {
@@ -1733,7 +1741,6 @@ expandedNodes.clear();
 selectedNodeId = "root";
 renderLegend();
 fullRender();
-showDetail(codebaseData);
 updateBreadcrumb(codebaseData);
 
 setTimeout(() => {
