@@ -594,6 +594,26 @@ let height = mapContainer.clientHeight;
 svg.setAttribute("width", width);
 svg.setAttribute("height", height);
 
+const measureScratch = document.createElementNS(NS, "text");
+measureScratch.setAttribute("x", -9999);
+measureScratch.setAttribute("y", -9999);
+measureScratch.setAttribute("class", "node-label");
+measureScratch.style.visibility = "hidden";
+svg.appendChild(measureScratch);
+
+const measureCache = new Map();
+function measureTextWidth(text, fontSize, fontWeight) {
+  const key = `${text}|${fontSize}|${fontWeight}`;
+  if (measureCache.has(key)) return measureCache.get(key);
+  if (!measureScratch.isConnected) svg.appendChild(measureScratch);
+  measureScratch.setAttribute("font-size", fontSize);
+  measureScratch.setAttribute("font-weight", fontWeight || "normal");
+  measureScratch.textContent = text;
+  const w = measureScratch.getBBox().width;
+  measureCache.set(key, w);
+  return w;
+}
+
 // Depth-based sizing — chips get sharper, smaller corners than the classic style's rounded cards
 const DEPTH_CONFIG = [
   { w: 210, h: 46, r: 2, fontSize: 14.5, fontWeight: 700, opacity: 1.0, strokeWidth: 1.5 },
@@ -651,6 +671,7 @@ function rebuildGraph() {
   allLinks = [];
   nodeMap = {};
   flattenTree(codebaseData, null, 0);
+  computeAllNodeBoxes();
 }
 
 // ─── Layout ───
@@ -667,14 +688,25 @@ function computeLayout() {
     }
   });
 
-  let yCounter = 0;
+  function nodeGrowth(node) {
+    const cfg = getDepthConfig(node._depth);
+    return Math.max(0, (node._boxH - cfg.h) / 2);
+  }
+
+  let yCursor = 0;
+  let prevLeaf = null;
 
   function layoutNode(node) {
     const children = nodesByParent[node.id] || [];
     if (children.length === 0) {
+      if (prevLeaf) {
+        yCursor += V_SPACING + nodeGrowth(prevLeaf) + nodeGrowth(node);
+      } else {
+        yCursor = 0;
+      }
       node._x = node._depth * H_SPACING;
-      node._y = yCounter * V_SPACING;
-      yCounter++;
+      node._y = yCursor;
+      prevLeaf = node;
       return;
     }
 
@@ -686,7 +718,8 @@ function computeLayout() {
     node._y = (firstY + lastY) / 2;
   }
 
-  yCounter = 0;
+  yCursor = 0;
+  prevLeaf = null;
   layoutNode(codebaseData);
 }
 
@@ -706,9 +739,94 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function truncateText(str, maxLen) {
-  if (!str || str.length <= maxLen) return str || "";
-  return str.substring(0, maxLen - 3) + "...";
+// ─── Adaptive label wrapping/sizing ───
+
+const LABEL_PADDING_X = 20;
+const LABEL_MAX_LINES = 3;
+
+function tokenizeLabel(name) {
+  const tokens = [];
+  name.split(/(?<=\/)/).forEach(part => {
+    part.split(/(?<=[._-])/).forEach(sub => {
+      sub.split(/(?<=[a-z0-9])(?=[A-Z])/).forEach(t => { if (t) tokens.push(t); });
+    });
+  });
+  return tokens.length ? tokens : [name];
+}
+
+function charWrapToken(token, maxWidth, measure) {
+  const pieces = [];
+  let current = "";
+  for (const ch of token) {
+    const candidate = current + ch;
+    if (current === "" || measure(candidate) <= maxWidth) {
+      current = candidate;
+    } else {
+      pieces.push(current);
+      current = ch;
+    }
+  }
+  if (current) pieces.push(current);
+  return pieces.length ? pieces : [token];
+}
+
+function ellipsisTrim(line, maxWidth, measure) {
+  let trimmed = line;
+  while (trimmed.length > 0 && measure(trimmed + "...") > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return (trimmed || line.slice(0, 1)) + "...";
+}
+
+function wrapLabel(name, maxWidth, maxLines, measure) {
+  const tokens = tokenizeLabel(name);
+  const lines = [];
+  let current = "";
+
+  tokens.forEach(token => {
+    if (measure(token) > maxWidth) {
+      if (current) { lines.push(current); current = ""; }
+      const pieces = charWrapToken(token, maxWidth, measure);
+      pieces.forEach((piece, idx) => {
+        if (idx < pieces.length - 1) lines.push(piece);
+        else current = piece;
+      });
+      return;
+    }
+    const candidate = current + token;
+    if (current === "" || measure(candidate) <= maxWidth) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = token;
+    }
+  });
+  if (current) lines.push(current);
+  if (lines.length === 0) lines.push("");
+
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    kept[maxLines - 1] = ellipsisTrim(kept[maxLines - 1], maxWidth, measure);
+    return kept;
+  }
+  return lines;
+}
+
+function computeNodeBox(node, cfg, measure) {
+  const maxTextWidth = cfg.w - LABEL_PADDING_X;
+  const measureAtSize = (text) => measure(text, cfg.fontSize, cfg.fontWeight);
+  const lines = wrapLabel(node.name, maxTextWidth, LABEL_MAX_LINES, measureAtSize);
+  const lineHeight = cfg.fontSize * 1.25;
+  node._lines = lines;
+  node._lineHeight = lineHeight;
+  node._boxW = cfg.w;
+  node._boxH = lines.length <= 1 ? cfg.h : cfg.h + (lines.length - 1) * lineHeight;
+}
+
+function computeAllNodeBoxes() {
+  allNodes.forEach(node => {
+    computeNodeBox(node, getDepthConfig(node._depth), measureTextWidth);
+  });
 }
 
 // node.color is spliced into a style="background:..." attribute in showDetail;
@@ -736,10 +854,10 @@ function createNodeElement(node) {
   group.appendChild(visual);
 
   const rect = createSVG("rect", {
-    x: -cfg.w / 2,
-    y: -cfg.h / 2,
-    width: cfg.w,
-    height: cfg.h,
+    x: -node._boxW / 2,
+    y: -node._boxH / 2,
+    width: node._boxW,
+    height: node._boxH,
     rx: cfg.r,
     ry: cfg.r,
     "stroke-width": cfg.strokeWidth,
@@ -750,10 +868,10 @@ function createNodeElement(node) {
 
   if (node.color) {
     const stripe = createSVG("rect", {
-      x: -cfg.w / 2,
-      y: -cfg.h / 2,
+      x: -node._boxW / 2,
+      y: -node._boxH / 2,
       width: 3,
-      height: cfg.h,
+      height: node._boxH,
       fill: node.color,
       class: "node-stripe"
     });
@@ -763,8 +881,8 @@ function createNodeElement(node) {
   if (crossConnectedIds.has(node.id)) {
     const ringR = 4.5;
     const via = createSVG("circle", {
-      cx: cfg.w / 2 - 9,
-      cy: -cfg.h / 2 + 9,
+      cx: node._boxW / 2 - 9,
+      cy: -node._boxH / 2 + 9,
       r: ringR,
       class: "via-ring"
     });
@@ -772,21 +890,29 @@ function createNodeElement(node) {
   }
 
   const isStructural = node._hasChildren || node.id === "root";
+  const lines = node._lines && node._lines.length ? node._lines : [node.name];
+  const labelX = node.color ? 3 : 0;
+  const baseCenterY = node._hasChildren ? -3 : 0;
+  const startY = baseCenterY - (lines.length - 1) * node._lineHeight / 2;
   const label = createSVG("text", {
-    x: node.color ? 3 : 0,
-    y: node._hasChildren ? -3 : 0,
+    x: labelX,
+    y: startY,
     "font-size": cfg.fontSize,
     "font-weight": cfg.fontWeight,
     class: "node-label" + (isStructural ? " structural" : "")
   });
-  label.textContent = node.name;
+  lines.forEach((line, i) => {
+    const tspan = createSVG("tspan", { x: labelX, dy: i === 0 ? 0 : "1.25em" });
+    tspan.textContent = line;
+    label.appendChild(tspan);
+  });
   visual.appendChild(label);
 
   if (node._hasChildren) {
     const childCount = node.children.length;
     const countLabel = createSVG("text", {
       x: 0,
-      y: cfg.h / 2 - 10,
+      y: node._boxH / 2 - 10,
       class: "node-child-count"
     });
     countLabel.textContent = node._expanded ? `${childCount} modules` : `${childCount} inside`;
@@ -817,11 +943,9 @@ function createNodeElement(node) {
 // ─── Create a link path ───
 
 function createLinkPath(source, target) {
-  const sCfg = getDepthConfig(source._depth);
-  const tCfg = getDepthConfig(target._depth);
-  const sx = source._x + sCfg.w / 2;
+  const sx = source._x + source._boxW / 2;
   const sy = source._y;
-  const tx = target._x - tCfg.w / 2;
+  const tx = target._x - target._boxW / 2;
   const ty = target._y;
   const midX = sx + (tx - sx) / 2;
   return `M${sx},${sy} H${midX} V${ty} H${tx}`;
@@ -1022,10 +1146,8 @@ function updateRender(newNodeIds, removedNodeIds, animate) {
           const tx = tOld ? tOld.x + (target._x - tOld.x) * ease : target._x;
           const ty = tOld ? tOld.y + (target._y - tOld.y) * ease : target._y;
 
-          const sCfg = getDepthConfig(source._depth);
-          const tCfg = getDepthConfig(target._depth);
-          const lsx = sx + sCfg.w / 2;
-          const ltx = tx - tCfg.w / 2;
+          const lsx = sx + source._boxW / 2;
+          const ltx = tx - target._boxW / 2;
           const midX = lsx + (ltx - lsx) / 2;
           pathEl.setAttribute("d", `M${lsx},${sy} H${midX} V${ty} H${ltx}`);
         }
@@ -1118,12 +1240,10 @@ function renderCrossConnections() {
     // depth-columns that parent-child links route through — rather than a
     // straight line, which would frequently cut across unrelated chips
     // stacked between source and target (e.g. two same-depth siblings).
-    const sCfg = getDepthConfig(source._depth);
-    const tCfg = getDepthConfig(target._depth);
-    const sx = source._x + sCfg.w / 2;
-    const sy = source._y - sCfg.h / 2 - 6;
-    const tx = target._x + tCfg.w / 2;
-    const ty = target._y - tCfg.h / 2 - 6;
+    const sx = source._x + source._boxW / 2;
+    const sy = source._y - source._boxH / 2 - 6;
+    const tx = target._x + target._boxW / 2;
+    const ty = target._y - target._boxH / 2 - 6;
     const railX = Math.max(sx, tx) + 20;
 
     const path = createSVG("path", {
@@ -1147,14 +1267,13 @@ function renderCrossConnections() {
 function showHoverPreview(node) {
   hideHoverPreview();
 
-  const cfg = getDepthConfig(node._depth);
   const g = document.getElementById("main-group");
   if (!g) return;
 
   const overlay = createSVG("g", { class: "hover-overlay" });
 
   const connectorLen = 60;
-  const startY = node._y + cfg.h / 2;
+  const startY = node._y + node._boxH / 2;
   const endY = startY + connectorLen;
 
   const connector = createSVG("line", {
@@ -1167,7 +1286,14 @@ function showHoverPreview(node) {
   overlay.appendChild(connector);
 
   const tooltipW = 240;
-  const tooltipH = node._hasChildren ? 74 : 58;
+  const descFontSize = 11.5;
+  const descLineHeight = 16;
+  const descLines = wrapLabel(
+    node.desc, tooltipW - 24, 4,
+    (t) => measureTextWidth(t, descFontSize, "normal")
+  );
+  const extraH = (descLines.length - 1) * descLineHeight;
+  const tooltipH = (node._hasChildren ? 74 : 58) + extraH;
   const tooltipX = node._x - tooltipW / 2;
   const tooltipY = endY + 4;
 
@@ -1183,26 +1309,30 @@ function showHoverPreview(node) {
     x: tooltipX + 12, y: tooltipY + 18,
     class: "hover-tooltip-text"
   });
-  descText.textContent = truncateText(node.desc, 100);
+  descLines.forEach((line, i) => {
+    const tspan = createSVG("tspan", { x: tooltipX + 12, dy: i === 0 ? 0 : "1.35em" });
+    tspan.textContent = line;
+    descText.appendChild(tspan);
+  });
   tooltipG.appendChild(descText);
 
   if (node._hasChildren) {
     const countText = createSVG("text", {
-      x: tooltipX + 12, y: tooltipY + 38,
+      x: tooltipX + 12, y: tooltipY + 38 + extraH,
       class: "hover-tooltip-count"
     });
     countText.textContent = `${node.children.length} modules inside`;
     tooltipG.appendChild(countText);
 
     const actionText = createSVG("text", {
-      x: tooltipX + 12, y: tooltipY + 56,
+      x: tooltipX + 12, y: tooltipY + 56 + extraH,
       class: "hover-tooltip-action"
     });
     actionText.textContent = node._expanded ? "Click to collapse" : "Click to explore";
     tooltipG.appendChild(actionText);
   } else {
     const actionText = createSVG("text", {
-      x: tooltipX + 12, y: tooltipY + 40,
+      x: tooltipX + 12, y: tooltipY + 40 + extraH,
       class: "hover-tooltip-action"
     });
     actionText.textContent = "Click to view details";
@@ -1610,11 +1740,10 @@ function fitAll() {
   if (allNodes.length === 0) return;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   allNodes.forEach(n => {
-    const cfg = getDepthConfig(n._depth);
-    minX = Math.min(minX, n._x - cfg.w / 2);
-    maxX = Math.max(maxX, n._x + cfg.w / 2);
-    minY = Math.min(minY, n._y - cfg.h / 2);
-    maxY = Math.max(maxY, n._y + cfg.h / 2);
+    minX = Math.min(minX, n._x - n._boxW / 2);
+    maxX = Math.max(maxX, n._x + n._boxW / 2);
+    minY = Math.min(minY, n._y - n._boxH / 2);
+    maxY = Math.max(maxY, n._y + n._boxH / 2);
   });
 
   const padding = 120;
